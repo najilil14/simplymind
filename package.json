@@ -1,0 +1,10 @@
+{
+  "name": "simplymind",
+  "private": true,
+  "scripts": {
+    "deploy": "gh-pages -d build/web --nojekyll"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
+}
