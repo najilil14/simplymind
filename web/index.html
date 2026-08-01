@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="SimplyMind - a simple, offline-first mind map app. Your ideas, stored locally.">
+  <meta name="theme-color" content="#4F6DF5">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="SimplyMind">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>SimplyMind</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+
+  <!-- Update notifier: Flutter writes version.json on every build. Poll it
+       and offer a one-click refresh when a newer deploy is detected. -->
+  <script>
+    (function () {
+      var initial = null;
+
+      function fetchVersion() {
+        return fetch('version.json', { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .catch(function () { return null; });
+      }
+
+      function stamp(v) {
+        return v ? v.version + '+' + v.build_number : null;
+      }
+
+      function showUpdateBanner() {
+        if (document.getElementById('update-banner')) return;
+        var banner = document.createElement('div');
+        banner.id = 'update-banner';
+        banner.style.cssText =
+          'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);' +
+          'background:#222536;color:#fff;padding:12px 16px;border-radius:12px;' +
+          'font-family:system-ui,sans-serif;font-size:14px;display:flex;' +
+          'gap:12px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.35);' +
+          'z-index:9999;';
+        var label = document.createElement('span');
+        label.textContent = 'A new version of SimplyMind is available.';
+        banner.appendChild(label);
+        var btn = document.createElement('button');
+        btn.textContent = 'Update';
+        btn.style.cssText =
+          'background:#4F6DF5;color:#fff;border:none;padding:8px 14px;' +
+          'border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;';
+        btn.onclick = function () { location.reload(); };
+        banner.appendChild(btn);
+        document.body.appendChild(banner);
+      }
+
+      function check() {
+        fetchVersion().then(function (v) {
+          var s = stamp(v);
+          if (!s) return;
+          if (initial === null) { initial = s; return; }
+          if (s !== initial) showUpdateBanner();
+        });
+      }
+
+      window.addEventListener('load', check);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') check();
+      });
+      setInterval(check, 5 * 60 * 1000);
+    })();
+  </script>
+</body>
+</html>
