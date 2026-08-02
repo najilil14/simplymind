@@ -1,18 +1,78 @@
 import 'dart:math';
-import 'dart:ui';
+
+import 'package:flutter/painting.dart';
 
 import '../models/mind_map.dart';
 
-const double _listIndent = 56;
+const double _listIndent = 44;
 const double _listGapY = 16;
 const double _stepGapX = 48;
 const double _stepLevelGap = 72;
 const double _graphRadius = 250;
 
+/// Text sizing limits: a node box hugs its text between these bounds, then
+/// the text wraps. The root node gets a wider box and more lines so long
+/// central topics stay fully readable.
+const double kMinNodeTextWidth = 56;
+const double kMaxNodeTextWidth = 220;
+const double kMaxRootTextWidth = 320;
+const double kMinNodeTextHeight = 24;
+const int kMaxNodeTextLines = 10;
+const int kMaxRootTextLines = 14;
+
+/// Max text lines used for rendering a node (must match measurement).
+int nodeMaxLines(bool isRoot) => isRoot ? kMaxRootTextLines : kMaxNodeTextLines;
+
+/// The text style nodes are both measured and rendered with (color is
+/// applied separately by the card widget).
+TextStyle nodeTextStyle(bool isRoot) => TextStyle(
+      fontSize: isRoot ? 15 : 13,
+      fontWeight: isRoot ? FontWeight.w700 : FontWeight.w500,
+      height: 1.3,
+    );
+
+/// Extra pixels added to measured text width so the rendered [Text] widget
+/// never wraps one word earlier than [TextPainter] predicted (a common
+/// CanvasKit / font-metrics mismatch on web).
+const double _textWidthFudge = 4;
+
+/// Measures the text content of [node], clamped to the sizing limits.
+Size _measureNodeText(MindMapNode node) {
+  final isRoot = node.parentId == null;
+  final maxWidth = isRoot ? kMaxRootTextWidth : kMaxNodeTextWidth;
+  final painter = TextPainter(
+    text: TextSpan(text: node.text, style: nodeTextStyle(isRoot)),
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.center,
+    maxLines: nodeMaxLines(isRoot),
+  );
+
+  // Prefer a single-line width when the label fits under the max. Measuring
+  // only at [maxWidth] can report the width of the longest *wrapped* line
+  // ("New") while the box height stays one-line tall - which clips "idea".
+  painter.layout(maxWidth: double.infinity);
+  final oneLineWidth = painter.width + _textWidthFudge;
+
+  final double w;
+  if (oneLineWidth <= maxWidth) {
+    w = oneLineWidth.ceilToDouble().clamp(kMinNodeTextWidth, maxWidth);
+    painter.layout(maxWidth: w);
+  } else {
+    // Label must wrap: size to the max width and measure the wrapped height.
+    w = maxWidth;
+    painter.layout(maxWidth: w);
+  }
+
+  final h = max(painter.height.ceilToDouble() + 1, kMinNodeTextHeight);
+  painter.dispose();
+  return Size(w, h);
+}
+
 /// Result of laying out a whole mind map.
 class LayoutResult {
   LayoutResult({
     required this.positions,
+    required this.sizes,
     required this.placedBy,
     required this.childrenModeOf,
     required this.stepNumber,
@@ -20,6 +80,9 @@ class LayoutResult {
 
   /// Absolute canvas position (center) of every node.
   final Map<String, Offset> positions;
+
+  /// Box size of every node: measured text plus the map's node padding.
+  final Map<String, Size> sizes;
 
   /// The mode that positioned each node (its parent's effective mode).
   /// The root is always [MindMapLayout.map] so it stays draggable.
@@ -42,24 +105,29 @@ class _Subtree {
   final Rect bounds;
 }
 
-Rect _nodeRect(MindMap map) => Rect.fromCenter(
-    center: Offset.zero, width: map.nodeWidth, height: map.nodeHeight);
-
-/// Computes positions for every node of [map] according to its template mode
-/// and any per-node overrides.
+/// Computes sizes and positions for every node of [map] according to its
+/// template mode and any per-node overrides.
 LayoutResult computeLayout(MindMap map) {
   final result = LayoutResult(
     positions: {},
+    sizes: {},
     placedBy: {},
     childrenModeOf: {},
     stepNumber: {},
   );
+  // Node boxes hug their text: measured content plus padding on all sides.
+  for (final n in map.nodes) {
+    final content = _measureNodeText(n);
+    result.sizes[n.id] = Size(
+      (content.width+20) + 2 * map.nodePadding,
+      content.height + 2 * map.nodePadding,
+    );
+  }
   final root = map.root;
   if (root == null) return result;
 
   final rootMode = root.layout ?? map.layout;
-  final subtree =
-      _computeSubtree(map, root, rootMode, 0, 2 * pi, result);
+  final subtree = _computeSubtree(map, root, rootMode, 0, 2 * pi, result);
   // The root is anchored at its stored position and always drag-movable.
   result.placedBy[root.id] = MindMapLayout.map;
   final anchor = Offset(root.x, root.y);
@@ -95,9 +163,11 @@ _Subtree _computeSubtree(
   LayoutResult out,
 ) {
   out.childrenModeOf[node.id] = childrenMode;
+  final size = out.sizes[node.id]!;
   final children = map.childrenOf(node.id);
   final offsets = <String, Offset>{node.id: Offset.zero};
-  var bounds = _nodeRect(map);
+  var bounds = Rect.fromCenter(
+      center: Offset.zero, width: size.width, height: size.height);
   if (children.isEmpty) return _Subtree(offsets, bounds);
 
   // Pre-compute every child subtree with its own effective mode.
@@ -125,13 +195,18 @@ _Subtree _computeSubtree(
       }
 
     case MindMapLayout.list:
-      var cursorY = map.nodeHeight / 2 + _listGapY;
+      // Outline: children's LEFT edges align, indented from the parent's
+      // left edge, so variable-width boxes read as a clean list.
+      var cursorY = size.height / 2 + _listGapY;
       for (var i = 0; i < children.length; i++) {
         final child = children[i];
-        final st = _computeSubtree(
-            map, child, childModes[i], 0, 2 * pi, out);
+        final st = _computeSubtree(map, child, childModes[i], 0, 2 * pi, out);
         out.placedBy[child.id] = MindMapLayout.list;
-        final at = Offset(_listIndent, cursorY - st.bounds.top);
+        final childWidth = out.sizes[child.id]!.width;
+        final at = Offset(
+          -size.width / 2 + _listIndent + childWidth / 2,
+          cursorY - st.bounds.top,
+        );
         merge(child, st, at);
         cursorY += st.bounds.height + _listGapY;
       }
@@ -141,8 +216,8 @@ _Subtree _computeSubtree(
       // centered over its own subtree.
       final subtrees = <_Subtree>[];
       for (var i = 0; i < children.length; i++) {
-        subtrees.add(_computeSubtree(
-            map, children[i], childModes[i], 0, 2 * pi, out));
+        subtrees.add(
+            _computeSubtree(map, children[i], childModes[i], 0, 2 * pi, out));
       }
       var totalW = 0.0;
       for (final st in subtrees) {
@@ -150,7 +225,7 @@ _Subtree _computeSubtree(
       }
       totalW += _stepGapX * (children.length - 1);
       var cursorX = -totalW / 2;
-      final rowTop = map.nodeHeight / 2 + _stepLevelGap;
+      final rowTop = size.height / 2 + _stepLevelGap;
       for (var i = 0; i < children.length; i++) {
         final child = children[i];
         final st = subtrees[i];

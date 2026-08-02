@@ -16,6 +16,12 @@ IconData layoutIcon(MindMapLayout layout) => switch (layout) {
       MindMapLayout.graph => Icons.hub_outlined,
     };
 
+IconData? statusIcon(NodeStatus status) => switch (status) {
+      NodeStatus.none => null,
+      NodeStatus.inProgress => Icons.timelapse,
+      NodeStatus.done => Icons.check_circle,
+    };
+
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key, required this.map, required this.storage});
 
@@ -381,7 +387,15 @@ class _MindMapCanvas extends StatelessWidget {
         Positioned.fill(
           child: IgnorePointer(
             child: CustomPaint(
-              painter: _EdgePainter(map, positions, layout.childrenModeOf),
+              painter: _EdgePainter(
+                map,
+                {
+                  for (final e in positions.entries)
+                    e.key: _displayPosition(controller, e.key, e.value),
+                },
+                layout.sizes,
+                layout.childrenModeOf,
+              ),
             ),
           ),
         ),
@@ -390,18 +404,27 @@ class _MindMapCanvas extends StatelessWidget {
             _NodeCard(
               key: ValueKey(node.id),
               node: node,
-              position: positions[node.id]!,
+              position: _displayPosition(
+                  controller, node.id, positions[node.id]!),
+              size: layout.sizes[node.id]!,
               isRoot: node.parentId == null,
               isSelected: node.id == controller.selectedId,
-              draggable: layout.placedBy[node.id] == MindMapLayout.map,
+              isDropTarget: node.id == controller.dropTargetId,
+              freeMove: layout.placedBy[node.id] == MindMapLayout.map,
               stepNumber: layout.stepNumber[node.id],
+              positions: positions,
+              sizes: layout.sizes,
               controller: controller,
               transform: transform,
             ),
-        if (selected != null && positions.containsKey(selected.id))
+        if (selected != null &&
+            positions.containsKey(selected.id) &&
+            !controller.isDragging)
           _NodeToolbar(
             node: selected,
-            position: positions[selected.id]!,
+            position: _displayPosition(
+                controller, selected.id, positions[selected.id]!),
+            nodeHeight: layout.sizes[selected.id]!.height,
             placedBy: layout.placedBy[selected.id] ?? MindMapLayout.map,
             controller: controller,
           ),
@@ -410,11 +433,27 @@ class _MindMapCanvas extends StatelessWidget {
   }
 }
 
+Offset _displayPosition(
+  EditorController controller,
+  String id,
+  Offset base,
+) {
+  final dragged = controller.draggingId;
+  if (dragged == null || controller.dragVisualOffset == Offset.zero) {
+    return base;
+  }
+  if (controller.map.subtreeIds(dragged).contains(id)) {
+    return base + controller.dragVisualOffset;
+  }
+  return base;
+}
+
 class _EdgePainter extends CustomPainter {
-  _EdgePainter(this.map, this.positions, this.childrenModeOf);
+  _EdgePainter(this.map, this.positions, this.sizes, this.childrenModeOf);
 
   final MindMap map;
   final Map<String, Offset> positions;
+  final Map<String, Size> sizes;
   final Map<String, MindMapLayout> childrenModeOf;
 
   void _arrowhead(Canvas canvas, Offset tip, double angle, Paint paint) {
@@ -434,8 +473,6 @@ class _EdgePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = map.nodeWidth;
-    final h = map.nodeHeight;
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
@@ -445,7 +482,8 @@ class _EdgePainter extends CustomPainter {
       final children = map.childrenOf(parent.id);
       if (children.isEmpty) continue;
       final p = positions[parent.id];
-      if (p == null) continue;
+      final ps = sizes[parent.id];
+      if (p == null || ps == null) continue;
       final mode = childrenModeOf[parent.id] ?? MindMapLayout.map;
 
       switch (mode) {
@@ -453,7 +491,7 @@ class _EdgePainter extends CustomPainter {
           for (final child in children) {
             final c = positions[child.id];
             if (c == null) continue;
-            paint.color = Color(child.color).withValues(alpha: 0.65);
+            paint.color = Color(child.color).withValues(alpha: 0.75);
             final midX = p.dx + (c.dx - p.dx) / 2;
             final path = Path()
               ..moveTo(p.dx, p.dy)
@@ -465,39 +503,43 @@ class _EdgePainter extends CustomPainter {
           for (final child in children) {
             final c = positions[child.id];
             if (c == null) continue;
-            paint.color = Color(child.color).withValues(alpha: 0.65);
+            paint.color = Color(child.color).withValues(alpha: 0.75);
             canvas.drawLine(p, c, paint);
           }
 
         case MindMapLayout.list:
           // Elbow lines hanging from below the parent's left side.
-          final trunkX = p.dx - w / 2 + 24;
+          final trunkX = p.dx - ps.width / 2 + 20;
           for (final child in children) {
             final c = positions[child.id];
-            if (c == null) continue;
-            paint.color = Color(child.color).withValues(alpha: 0.65);
+            final cs = sizes[child.id];
+            if (c == null || cs == null) continue;
+            paint.color = Color(child.color).withValues(alpha: 0.75);
             final path = Path()
-              ..moveTo(trunkX, p.dy + h / 2)
+              ..moveTo(trunkX, p.dy + ps.height / 2)
               ..lineTo(trunkX, c.dy)
-              ..lineTo(c.dx - w / 2, c.dy);
+              ..lineTo(c.dx - cs.width / 2, c.dy);
             canvas.drawPath(path, paint);
           }
 
         case MindMapLayout.step:
           // Parent points to step 1, then each step points to the next.
           final first = positions[children.first.id];
-          if (first != null) {
-            paint.color = Color(children.first.color).withValues(alpha: 0.75);
-            _arrow(canvas, Offset(p.dx, p.dy + h / 2),
-                Offset(first.dx, first.dy - h / 2), paint);
+          final firstSize = sizes[children.first.id];
+          if (first != null && firstSize != null) {
+            paint.color = Color(children.first.color).withValues(alpha: 0.8);
+            _arrow(canvas, Offset(p.dx, p.dy + ps.height / 2),
+                Offset(first.dx, first.dy - firstSize.height / 2), paint);
           }
           for (var i = 0; i < children.length - 1; i++) {
             final a = positions[children[i].id];
             final b = positions[children[i + 1].id];
-            if (a == null || b == null) continue;
-            paint.color = Color(children[i + 1].color).withValues(alpha: 0.75);
-            _arrow(canvas, Offset(a.dx + w / 2, a.dy),
-                Offset(b.dx - w / 2, b.dy), paint);
+            final sa = sizes[children[i].id];
+            final sb = sizes[children[i + 1].id];
+            if (a == null || b == null || sa == null || sb == null) continue;
+            paint.color = Color(children[i + 1].color).withValues(alpha: 0.8);
+            _arrow(canvas, Offset(a.dx + sa.width / 2, a.dy),
+                Offset(b.dx - sb.width / 2, b.dy), paint);
           }
       }
     }
@@ -548,78 +590,103 @@ Future<void> _showNodeTextDialog(
   }
 }
 
+/// Text color that stays readable on both the new pastel palette (dark ink)
+/// and legacy saturated node colors (white).
+Color _inkFor(Color background) =>
+    background.computeLuminance() > 0.45 ? const Color(0xFF273043) : Colors.white;
+
 class _NodeCard extends StatelessWidget {
   const _NodeCard({
     super.key,
     required this.node,
     required this.position,
+    required this.size,
     required this.isRoot,
     required this.isSelected,
-    required this.draggable,
+    required this.isDropTarget,
+    required this.freeMove,
     required this.stepNumber,
+    required this.positions,
+    required this.sizes,
     required this.controller,
     required this.transform,
   });
 
   final MindMapNode node;
   final Offset position;
+  final Size size;
   final bool isRoot;
   final bool isSelected;
-  final bool draggable;
+  final bool isDropTarget;
+  final bool freeMove;
   final int? stepNumber;
+  final Map<String, Offset> positions;
+  final Map<String, Size> sizes;
   final EditorController controller;
   final TransformationController transform;
 
   @override
   Widget build(BuildContext context) {
     final color = Color(node.color);
+    final ink = _inkFor(color);
     final scheme = Theme.of(context).colorScheme;
     final map = controller.map;
+    final canDrag = !isRoot;
     return Positioned(
-      left: position.dx - map.nodeWidth / 2,
-      top: position.dy - map.nodeHeight / 2,
-      width: map.nodeWidth,
-      height: map.nodeHeight,
+      left: position.dx - size.width / 2,
+      top: position.dy - size.height / 2,
+      width: size.width,
+      height: size.height,
       child: GestureDetector(
         onTap: () => controller.select(node.id),
         onDoubleTap: () {
           controller.select(node.id);
           _showNodeTextDialog(context, controller, node);
         },
-        onPanStart: !draggable
+        onPanStart: !canDrag
             ? null
             : (_) {
                 controller.select(node.id);
-                controller.beginMove();
+                controller.beginMove(node.id);
               },
-        onPanUpdate: !draggable
+        onPanUpdate: !canDrag
             ? null
             : (details) {
                 final scale = transform.value.getMaxScaleOnAxis();
-                controller.moveBy(node.id, details.delta.dx / scale,
-                    details.delta.dy / scale);
+                controller.updateDrag(
+                  id: node.id,
+                  dx: details.delta.dx / scale,
+                  dy: details.delta.dy / scale,
+                  freeMove: freeMove,
+                  positions: positions,
+                  sizes: sizes,
+                );
               },
-        onPanEnd: !draggable ? null : (_) => controller.endMove(),
-        onPanCancel: !draggable ? null : controller.endMove,
+        onPanEnd: !canDrag ? null : (_) => controller.endMove(),
+        onPanCancel: !canDrag ? null : controller.endMove,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              width: map.nodeWidth,
-              height: map.nodeHeight,
+              width: size.width,
+              height: size.height,
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(isRoot ? 32 : 14),
+                borderRadius: BorderRadius.circular(isRoot ? 24 : 14),
                 border: Border.all(
-                  color: isSelected ? scheme.onSurface : Colors.white24,
-                  width: isSelected ? 3 : 1,
+                  color: isDropTarget
+                      ? scheme.primary
+                      : isSelected
+                          ? scheme.onSurface
+                          : ink.withValues(alpha: 0.18),
+                  width: isDropTarget || isSelected ? 3 : 1,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color:
-                        Colors.black.withValues(alpha: isSelected ? 0.35 : 0.18),
-                    blurRadius: isSelected ? 14 : 6,
+                        Colors.black.withValues(alpha: isSelected ? 0.25 : 0.10),
+                    blurRadius: isSelected ? 12 : 5,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -629,13 +696,9 @@ class _NodeCard extends StatelessWidget {
               child: Text(
                 node.text,
                 textAlign: TextAlign.center,
-                maxLines: 2,
+                maxLines: nodeMaxLines(isRoot),
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isRoot ? 15 : 13,
-                  fontWeight: isRoot ? FontWeight.w700 : FontWeight.w500,
-                ),
+                style: nodeTextStyle(isRoot).copyWith(color: ink),
               ),
             ),
             if (stepNumber != null)
@@ -676,9 +739,95 @@ class _NodeCard extends StatelessWidget {
                       size: 12, color: scheme.onSurfaceVariant),
                 ),
               ),
+            if (node.status != NodeStatus.none)
+              Positioned(
+                left: -6,
+                bottom: -6,
+                child: _StatusBadge(status: node.status),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _StatusBadge extends StatefulWidget {
+  const _StatusBadge({required this.status});
+
+  final NodeStatus status;
+
+  @override
+  State<_StatusBadge> createState() => _StatusBadgeState();
+}
+
+class _StatusBadgeState extends State<_StatusBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.status == NodeStatus.inProgress) _spin.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StatusBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.status == NodeStatus.inProgress) {
+      if (!_spin.isAnimating) _spin.repeat();
+    } else {
+      _spin.stop();
+      _spin.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDone = widget.status == NodeStatus.done;
+    final bg = isDone ? const Color(0xFF2E7D4F) : scheme.surface;
+    final fg = isDone ? Colors.white : const Color(0xFF3B6FE0);
+
+    Widget icon;
+    if (widget.status == NodeStatus.inProgress) {
+      icon = RotationTransition(
+        turns: _spin,
+        child: Icon(Icons.autorenew, size: 14, color: fg),
+      );
+    } else {
+      icon = Icon(Icons.check, size: 14, color: fg);
+    }
+
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bg,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isDone ? bg : scheme.outlineVariant,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: icon,
     );
   }
 }
@@ -687,48 +836,159 @@ class _NodeToolbar extends StatelessWidget {
   const _NodeToolbar({
     required this.node,
     required this.position,
+    required this.nodeHeight,
     required this.placedBy,
     required this.controller,
   });
 
   final MindMapNode node;
   final Offset position;
+  final double nodeHeight;
   final MindMapLayout placedBy;
   final EditorController controller;
 
+  static String _themeLabel(String key) =>
+      key[0].toUpperCase() + key.substring(1);
+
   Future<void> _pickColor(BuildContext context) async {
+    var custom = HSVColor.fromColor(Color(node.color));
     final picked = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Node color'),
-        content: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (final c in kNodePalette)
-              InkWell(
-                borderRadius: BorderRadius.circular(24),
-                onTap: () => Navigator.of(context).pop(c),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Color(c),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: c == node.color
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Colors.transparent,
-                      width: 3,
-                    ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) {
+          final scheme = Theme.of(context).colorScheme;
+          Widget sliderRow(String label, double value, double max,
+              ValueChanged<double> onChanged) {
+            return Row(
+              children: [
+                SizedBox(width: 16, child: Text(label)),
+                Expanded(
+                  child: Slider(
+                    value: value,
+                    max: max,
+                    onChanged: (v) => setState(() => onChanged(v)),
                   ),
                 ),
+              ],
+            );
+          }
+
+          return AlertDialog(
+            title: const Text('Node color'),
+            content: SizedBox(
+              width: 340,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact),
+                    segments: [
+                      for (final key in kColorThemes.keys)
+                        ButtonSegment(
+                            value: key, label: Text(_themeLabel(key))),
+                    ],
+                    selected: {controller.map.colorTheme},
+                    onSelectionChanged: (s) =>
+                        setState(() => controller.setColorTheme(s.first)),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (final c in controller.map.palette)
+                        InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () => Navigator.of(dialogContext).pop(c),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Color(c),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: c == node.color
+                                    ? scheme.onSurface
+                                    : scheme.outlineVariant,
+                                width: c == node.color ? 3 : 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+                  Row(
+                    children: [
+                      Text('Custom color',
+                          style: Theme.of(context).textTheme.labelLarge),
+                      const Spacer(),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: custom.toColor(),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: scheme.outlineVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                  sliderRow('H', custom.hue, 360,
+                      (v) => custom = custom.withHue(v)),
+                  sliderRow('S', custom.saturation, 1,
+                      (v) => custom = custom.withSaturation(v)),
+                  sliderRow('B', custom.value, 1,
+                      (v) => custom = custom.withValue(v)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(dialogContext)
+                          .pop(custom.toColor().toARGB32()),
+                      child: const Text('Use custom color'),
+                    ),
+                  ),
+                ],
               ),
-          ],
-        ),
+            ),
+          );
+        },
       ),
     );
     if (picked != null) controller.setColor(node.id, picked);
+  }
+
+  Future<void> _pickStatus(BuildContext context) async {
+    final picked = await showDialog<NodeStatus>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Node status'),
+        children: [
+          for (final s in NodeStatus.values)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(s),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  statusIcon(s) ?? Icons.remove_circle_outline,
+                  color: s == NodeStatus.done
+                      ? const Color(0xFF2E7D4F)
+                      : s == NodeStatus.inProgress
+                          ? const Color(0xFF3B6FE0)
+                          : null,
+                ),
+                title: Text(s.label),
+                trailing:
+                    node.status == s ? const Icon(Icons.check) : null,
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked != null) controller.setStatus(node.id, picked);
   }
 
   Future<void> _pickLayout(BuildContext context) async {
@@ -775,7 +1035,7 @@ class _NodeToolbar extends StatelessWidget {
     final horizontal = placedBy == MindMapLayout.step;
     return Positioned(
       left: position.dx,
-      top: position.dy + controller.map.nodeHeight / 2 + 8,
+      top: position.dy + nodeHeight / 2 + 8,
       child: FractionalTranslation(
         translation: const Offset(-0.5, 0),
         child: Material(
@@ -819,11 +1079,27 @@ class _NodeToolbar extends StatelessWidget {
                     onPressed: () => controller.reorderSibling(node.id, 1),
                   ),
                 ],
+                if (controller.canPromote(node.id))
+                  IconButton(
+                    tooltip: 'Promote (sibling of parent)',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.keyboard_double_arrow_up, size: 20),
+                    onPressed: () => controller.promote(node.id),
+                  ),
                 IconButton(
                   tooltip: 'Branch template',
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.account_tree_outlined, size: 20),
                   onPressed: () => _pickLayout(context),
+                ),
+                IconButton(
+                  tooltip: 'Status',
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    statusIcon(node.status) ?? Icons.flag_outlined,
+                    size: 20,
+                  ),
+                  onPressed: () => _pickStatus(context),
                 ),
                 IconButton(
                   tooltip: 'Color',
@@ -903,7 +1179,7 @@ class _HintBanner extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(
-          'Tap: select · Double-tap: edit · Drag: move branch',
+          'Drag onto a node to attach · Promote: ⇈ · Double-tap: edit',
           style: Theme.of(context)
               .textTheme
               .bodySmall

@@ -50,8 +50,17 @@ stored `x`/`y` are only used again when switching back to `map` mode; sibling
 order in the `nodes` array is the display order.
 
 `nodePadding` (2-28, default 8) is the space in pixels between a node's text
-and its box border; node boxes grow with it. Adjustable per map from the
-editor's settings (tune icon).
+and its box border; node boxes size themselves to their text on top of it.
+Adjustable per map from the editor's settings (tune icon).
+
+`colorTheme` (`"pastel"`, `"vivid"` or `"earth"`, default `"pastel"`) selects
+the palette offered in the node color picker. Switching themes remaps existing
+theme colors to the same position in the new palette; custom colors (picked
+with the HSB sliders) are stored as plain ARGB ints and survive theme
+switches unchanged.
+
+Nodes may include `"status": "inProgress"` or `"status": "done"`. When omitted
+(or `"none"`) no status icon is shown.
 
 ## Running
 

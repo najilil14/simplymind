@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
@@ -42,6 +43,7 @@ class EditorController extends ChangeNotifier {
     final restored = MindMap.decode(snapshot);
     map.layout = restored.layout;
     map.nodePadding = restored.nodePadding;
+    map.colorTheme = restored.colorTheme;
     map.nodes
       ..clear()
       ..addAll(restored.nodes);
@@ -78,8 +80,8 @@ class EditorController extends ChangeNotifier {
       text: 'New idea',
       x: (parent.x + map.nodeWidth + 90).clamp(0, kCanvasSize),
       y: (parent.y + vertical).clamp(0, kCanvasSize),
-      color: kNodePalette[
-          (kNodePalette.indexOf(parent.color) + 1) % kNodePalette.length],
+      color: map.palette[
+          (map.palette.indexOf(parent.color) + 1) % map.palette.length],
       parentId: parentId,
     );
     map.nodes.add(child);
@@ -104,6 +106,14 @@ class EditorController extends ChangeNotifier {
     _touch();
   }
 
+  void setStatus(String id, NodeStatus status) {
+    final node = map.nodeById(id);
+    if (node == null || node.status == status) return;
+    _checkpoint();
+    node.status = status;
+    _touch();
+  }
+
   /// Deletes a node together with its whole subtree. The root cannot be
   /// deleted.
   void deleteSubtree(String id) {
@@ -122,6 +132,26 @@ class EditorController extends ChangeNotifier {
     final v = value.clamp(kMinNodePadding, kMaxNodePadding).toDouble();
     if (map.nodePadding == v) return;
     map.nodePadding = v;
+    _touch();
+  }
+
+  /// Switches the color theme. Node colors that belong to a known theme are
+  /// remapped to the same position in the new palette; custom colors are
+  /// left untouched.
+  void setColorTheme(String theme) {
+    final newPalette = kColorThemes[theme];
+    if (newPalette == null || map.colorTheme == theme) return;
+    _checkpoint();
+    for (final node in map.nodes) {
+      for (final palette in kColorThemes.values) {
+        final index = palette.indexOf(node.color);
+        if (index >= 0) {
+          node.color = newPalette[index];
+          break;
+        }
+      }
+    }
+    map.colorTheme = theme;
     _touch();
   }
 
@@ -163,18 +193,161 @@ class EditorController extends ChangeNotifier {
     _touch();
   }
 
+  /// True if [nodeId] can become a child of [newParentId] without creating a
+  /// cycle or a second root.
+  bool canReparent(String nodeId, String newParentId) {
+    final node = map.nodeById(nodeId);
+    if (node == null || node.parentId == null) return false;
+    if (node.parentId == newParentId) return false;
+    if (map.nodeById(newParentId) == null) return false;
+    // Cannot attach under yourself or any of your descendants.
+    if (map.subtreeIds(nodeId).contains(newParentId)) return false;
+    return true;
+  }
+
+  /// Attaches [nodeId] under [newParentId]. The whole subtree moves with it.
+  void reparent(String nodeId, String newParentId, {bool checkpoint = true}) {
+    if (!canReparent(nodeId, newParentId)) return;
+    if (checkpoint) _checkpoint();
+    final node = map.nodeById(nodeId)!;
+    final parent = map.nodeById(newParentId)!;
+
+    final dx = (parent.x + 140) - node.x;
+    final dy = parent.y - node.y;
+    for (final id in map.subtreeIds(nodeId)) {
+      final n = map.nodeById(id)!;
+      n.x = (n.x + dx).clamp(0, kCanvasSize);
+      n.y = (n.y + dy).clamp(0, kCanvasSize);
+    }
+    node.parentId = newParentId;
+
+    // Keep sibling order sensible: place after the new parent's last child.
+    map.nodes.remove(node);
+    final lastChild = map.nodes.lastIndexWhere((n) => n.parentId == newParentId);
+    if (lastChild >= 0) {
+      map.nodes.insert(lastChild + 1, node);
+    } else {
+      final parentIndex = map.nodes.indexWhere((n) => n.id == newParentId);
+      map.nodes.insert(parentIndex + 1, node);
+    }
+    _touch();
+  }
+
+  /// Makes [id] a sibling of its current parent (child of the grandparent).
+  void promote(String id) {
+    final node = map.nodeById(id);
+    if (node?.parentId == null) return;
+    final parent = map.nodeById(node!.parentId!);
+    final grandparentId = parent?.parentId;
+    if (grandparentId == null) return;
+    reparent(id, grandparentId);
+  }
+
+  bool canPromote(String id) {
+    final node = map.nodeById(id);
+    if (node?.parentId == null) return false;
+    return map.nodeById(node!.parentId!)?.parentId != null;
+  }
+
   /// True while a node is being dragged; layout animations are suppressed so
   /// the node follows the pointer without lag.
   bool isDragging = false;
 
-  /// Called once when a drag starts so the whole gesture is one undo step.
-  void beginMove() {
-    isDragging = true;
+  /// Node currently being dragged (for reparent / visual offset).
+  String? draggingId;
+
+  /// Valid drop target under the pointer, or null.
+  String? dropTargetId;
+
+  /// Extra canvas offset applied while dragging auto-laid-out nodes (their
+  /// stored x/y are ignored by the layout engine until drop).
+  Offset dragVisualOffset = Offset.zero;
+
+  /// Called once when a gesture starts so the whole gesture is one undo step.
+  /// Pass [id] when dragging a node (enables drop-to-reparent).
+  void beginMove([String? id]) {
+    if (id != null) {
+      isDragging = true;
+      draggingId = id;
+      dropTargetId = null;
+      dragVisualOffset = Offset.zero;
+    }
     _checkpoint();
+    notifyListeners();
+  }
+
+  /// Updates drag position and highlights a drop-to-reparent target if any.
+  void updateDrag({
+    required String id,
+    required double dx,
+    required double dy,
+    required bool freeMove,
+    required Map<String, Offset> positions,
+    required Map<String, Size> sizes,
+  }) {
+    if (freeMove) {
+      moveBy(id, dx, dy);
+    } else {
+      dragVisualOffset += Offset(dx, dy);
+    }
+
+    // After freeMove, stored coords are current; during auto-layout drag the
+    // layout positions are static and we add [dragVisualOffset].
+    final node = map.nodeById(id);
+    final base = positions[id];
+    if (node == null || base == null) return;
+    final tip =
+        freeMove ? Offset(node.x, node.y) : base + dragVisualOffset;
+    _resolveDropTarget(id, tip, positions, sizes);
+    if (!freeMove) notifyListeners();
+  }
+
+  void _resolveDropTarget(
+    String draggedId,
+    Offset tip,
+    Map<String, Offset> positions,
+    Map<String, Size> sizes,
+  ) {
+    String? hit;
+    var bestArea = double.infinity;
+    final doomed = map.subtreeIds(draggedId);
+    for (final n in map.nodes) {
+      if (doomed.contains(n.id)) continue;
+      if (!canReparent(draggedId, n.id)) continue;
+      final p = positions[n.id];
+      final s = sizes[n.id];
+      if (p == null || s == null) continue;
+      const pad = 12.0;
+      final rect = Rect.fromCenter(
+        center: p,
+        width: s.width + pad,
+        height: s.height + pad,
+      );
+      if (!rect.contains(tip)) continue;
+      final area = s.width * s.height;
+      // Prefer the smallest node under the tip (deepest / most specific).
+      if (area < bestArea) {
+        bestArea = area;
+        hit = n.id;
+      }
+    }
+    if (dropTargetId != hit) {
+      dropTargetId = hit;
+      notifyListeners();
+    }
   }
 
   void endMove() {
+    final dragged = draggingId;
+    final target = dropTargetId;
+    if (dragged != null && target != null && canReparent(dragged, target)) {
+      // Checkpoint already taken in beginMove.
+      reparent(dragged, target, checkpoint: false);
+    }
     isDragging = false;
+    draggingId = null;
+    dropTargetId = null;
+    dragVisualOffset = Offset.zero;
     notifyListeners();
   }
 

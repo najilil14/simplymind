@@ -44,18 +44,64 @@ const double kDefaultNodePadding = 8;
 const double kMinNodePadding = 2;
 const double kMaxNodePadding = 28;
 
-/// Default colors offered for nodes (ARGB).
+/// Default colors offered for nodes (ARGB): soft, modern pastels.
+/// Text contrast is derived from the color's luminance, so maps using
+/// darker saturated colors keep readable white text.
 const List<int> kNodePalette = <int>[
-  0xFF4F6DF5, // indigo
-  0xFF00A896, // teal
-  0xFF6A994E, // green
-  0xFFF4A261, // orange
-  0xFFE76F51, // coral
-  0xFFEF476F, // pink
-  0xFF9B5DE5, // purple
-  0xFF0096C7, // blue
-  0xFF5C677D, // slate
+    0xFF4F6DF5, // indigo
+    0xFF00A896, // teal
+    0xFF6A994E, // green
+    0xFFF4A261, // orange
+    0xFFE76F51, // coral
+    0xFFEF476F, // pink
+    0xFF9B5DE5, // purple
+    0xFF0096C7, // blue
+    0xFF5C677D, // slate
 ];
+
+/// Selectable color themes. Each has 9 colors at matching palette positions,
+/// so switching themes can remap node colors index-by-index.
+const Map<String, List<int>> kColorThemes = <String, List<int>>{
+  'vivid': kNodePalette,
+  'pastel': <int>[
+    0xFFAEC6FF, // soft periwinkle blue
+    0xFF9EE7D8, // mint
+    0xFFBBE5A6, // soft green
+    0xFFFFD9A0, // apricot
+    0xFFFFB3A7, // soft coral
+    0xFFF8B8D0, // rose
+    0xFFD5C4F9, // lavender
+    0xFFA9E4EF, // sky
+    0xFFD3DAE6, // mist grey
+  ],
+  'earth': <int>[
+    0xFF8A9B8E, // sage
+    0xFFC2B280, // sand
+    0xFF97A97C, // moss
+    0xFFD4A373, // amber tan
+    0xFFB08968, // clay
+    0xFFC98D83, // terracotta rose
+    0xFFA58FAA, // dried lavender
+    0xFF8FAAB3, // slate blue grey
+    0xFFA9927D, // taupe
+  ],
+};
+
+/// Progress marker shown on a node. [none] means no icon.
+enum NodeStatus {
+  none,
+  inProgress,
+  done;
+
+  static NodeStatus fromName(String? name) => NodeStatus.values
+      .firstWhere((e) => e.name == name, orElse: () => NodeStatus.none);
+
+  String get label => switch (this) {
+        NodeStatus.none => 'No status',
+        NodeStatus.inProgress => 'In progress',
+        NodeStatus.done => 'Done',
+      };
+}
 
 class MindMapNode {
   MindMapNode({
@@ -66,6 +112,7 @@ class MindMapNode {
     required this.color,
     this.parentId,
     this.layout,
+    this.status = NodeStatus.none,
   });
 
   final String id;
@@ -85,6 +132,9 @@ class MindMapNode {
   /// is inherited from the nearest ancestor override, or the map itself.
   MindMapLayout? layout;
 
+  /// Optional progress status shown as an icon badge on the node.
+  NodeStatus status;
+
   factory MindMapNode.fromJson(Map<String, dynamic> json) => MindMapNode(
         id: json['id'] as String,
         text: json['text'] as String? ?? '',
@@ -95,6 +145,7 @@ class MindMapNode {
         layout: json['layout'] == null
             ? null
             : MindMapLayout.fromName(json['layout'] as String),
+        status: NodeStatus.fromName(json['status'] as String?),
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -105,6 +156,7 @@ class MindMapNode {
         'color': color,
         'parentId': parentId,
         if (layout != null) 'layout': layout!.name,
+        if (status != NodeStatus.none) 'status': status.name,
       };
 
   MindMapNode copy() => MindMapNode(
@@ -114,7 +166,8 @@ class MindMapNode {
       y: y,
       color: color,
       parentId: parentId,
-      layout: layout);
+      layout: layout,
+      status: status);
 }
 
 class MindMap {
@@ -125,6 +178,7 @@ class MindMap {
     required this.nodes,
     this.layout = MindMapLayout.map,
     this.nodePadding = kDefaultNodePadding,
+    this.colorTheme = 'pastel',
   });
 
   final String id;
@@ -137,6 +191,12 @@ class MindMap {
 
   /// Padding between node text and the node box, in canvas pixels.
   double nodePadding;
+
+  /// Key into [kColorThemes]; determines the palette offered for new nodes.
+  String colorTheme;
+
+  /// The active palette for this map.
+  List<int> get palette => kColorThemes[colorTheme] ?? kNodePalette;
 
   /// Node box dimensions derived from the padding setting.
   double get nodeWidth => kNodeContentWidth + 2 * nodePadding;
@@ -177,6 +237,9 @@ class MindMap {
         nodePadding:
             ((json['nodePadding'] as num?)?.toDouble() ?? kDefaultNodePadding)
                 .clamp(kMinNodePadding, kMaxNodePadding),
+        colorTheme: kColorThemes.containsKey(json['colorTheme'])
+            ? json['colorTheme'] as String
+            : 'pastel',
         nodes: (json['nodes'] as List<dynamic>? ?? const [])
             .map((e) => MindMapNode.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -188,6 +251,7 @@ class MindMap {
         'updatedAt': updatedAt.toIso8601String(),
         'layout': layout.name,
         'nodePadding': nodePadding,
+        'colorTheme': colorTheme,
         'nodes': nodes.map((n) => n.toJson()).toList(),
       };
 
@@ -238,6 +302,7 @@ class MindMap {
         updatedAt: updatedAt,
         layout: layout,
         nodePadding: nodePadding,
+        colorTheme: colorTheme,
         nodes: nodes.map((n) => n.copy()).toList(),
       );
 }

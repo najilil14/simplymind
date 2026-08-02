@@ -1,9 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:simplymind/layout/layout_engine.dart';
 import 'package:simplymind/models/mind_map.dart';
+import 'package:simplymind/state/editor_controller.dart';
+import 'package:simplymind/storage/mind_map_storage.dart';
 
 MindMap _tree(MindMapLayout layout) {
   final map = MindMap.create(
@@ -18,22 +21,30 @@ MindMap _tree(MindMapLayout layout) {
   return map;
 }
 
-Rect _rectAt(Offset center, MindMap map) => Rect.fromCenter(
-    center: center, width: map.nodeWidth, height: map.nodeHeight);
+Rect _rectOf(LayoutResult result, String id) => Rect.fromCenter(
+    center: result.positions[id]!,
+    width: result.sizes[id]!.width,
+    height: result.sizes[id]!.height);
+
+double _leftEdge(LayoutResult result, String id) =>
+    result.positions[id]!.dx - result.sizes[id]!.width / 2;
 
 void _expectNoOverlaps(LayoutResult result, MindMap map) {
-  final entries = result.positions.entries.toList();
-  for (var i = 0; i < entries.length; i++) {
-    for (var j = i + 1; j < entries.length; j++) {
-      final a = _rectAt(entries[i].value, map).deflate(1);
-      final b = _rectAt(entries[j].value, map).deflate(1);
+  final ids = result.positions.keys.toList();
+  for (var i = 0; i < ids.length; i++) {
+    for (var j = i + 1; j < ids.length; j++) {
+      final a = _rectOf(result, ids[i]).deflate(1);
+      final b = _rectOf(result, ids[j]).deflate(1);
       expect(a.overlaps(b), isFalse,
-          reason: '${entries[i].key} overlaps ${entries[j].key}');
+          reason: '${ids[i]} overlaps ${ids[j]}');
     }
   }
 }
 
 void main() {
+  // Text measurement (node auto-sizing) needs the test rendering bindings.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('layout serializes to JSON and back, including node overrides', () {
     final map = _tree(MindMapLayout.step);
     map.nodeById('a')!.layout = MindMapLayout.list;
@@ -55,16 +66,17 @@ void main() {
   test('list mode stacks children top to bottom in sibling order', () {
     final map = _tree(MindMapLayout.list);
     final result = computeLayout(map);
-    final root = map.root!;
+    final rootId = map.root!.id;
 
+    // Children's left edges align, indented 44 from the parent's left edge.
     for (final id in ['a', 'b', 'c']) {
-      expect(result.positions[id]!.dx, root.x + 56,
+      expect(_leftEdge(result, id) - _leftEdge(result, rootId), 44,
           reason: 'children indent right of the root');
     }
     expect(result.positions['a']!.dy, lessThan(result.positions['b']!.dy));
     expect(result.positions['b']!.dy, lessThan(result.positions['c']!.dy));
     // Grandchild indents one level further.
-    expect(result.positions['a1']!.dx, root.x + 112);
+    expect(_leftEdge(result, 'a1') - _leftEdge(result, 'a'), 44);
     _expectNoOverlaps(result, map);
   });
 
@@ -126,12 +138,12 @@ void main() {
 
   test('nodePadding round-trips through JSON and resizes nodes', () {
     final map = _tree(MindMapLayout.map);
-    expect(map.nodeWidth, 170);
-    expect(map.nodeHeight, 64);
+    final before = computeLayout(map).sizes['a']!;
 
     map.nodePadding = 20;
-    expect(map.nodeWidth, kNodeContentWidth + 40);
-    expect(map.nodeHeight, kNodeContentHeight + 40);
+    final after = computeLayout(map).sizes['a']!;
+    expect(after.width, before.width + 2 * (20 - kDefaultNodePadding));
+    expect(after.height, before.height + 2 * (20 - kDefaultNodePadding));
 
     final restored = MindMap.decode(map.encode());
     expect(restored.nodePadding, 20);
@@ -154,6 +166,128 @@ void main() {
 
     expect(gapAfter, greaterThan(gapBefore));
     _expectNoOverlaps(after, map);
+  });
+
+  test('node box grows with its text, capped at the max width', () {
+    final map = _tree(MindMapLayout.map);
+    final short = computeLayout(map).sizes['a']!;
+
+    map.nodeById('a')!.text =
+        'a much longer node label that should wrap onto several lines';
+    final long = computeLayout(map).sizes['a']!;
+
+    expect(long.width, greaterThan(short.width));
+    expect(long.width,
+        lessThanOrEqualTo(kMaxNodeTextWidth + 2 * map.nodePadding));
+    expect(long.height, greaterThan(short.height),
+        reason: 'wrapped text should make the box taller');
+    // Layouts still resolve without overlaps with mixed box sizes.
+    map.layout = MindMapLayout.list;
+    _expectNoOverlaps(computeLayout(map), map);
+    map.layout = MindMapLayout.step;
+    _expectNoOverlaps(computeLayout(map), map);
+  });
+
+  test('"New idea" fits on one line without clipping', () {
+    final map = _tree(MindMapLayout.map);
+    map.nodeById('a')!.text = 'New idea';
+    final size = computeLayout(map).sizes['a']!;
+    final textWidth = size.width - 2 * map.nodePadding;
+
+    // Must be wider than a single short word; otherwise "idea" would wrap
+    // out of a one-line-tall box and disappear.
+    expect(textWidth, greaterThan(56));
+    expect(size.height, lessThan(kMinNodeTextHeight + 20),
+        reason: 'short two-word labels should stay on one line');
+  });
+
+  test('long root text gets a wider box and is never cut by width', () {
+    final map = _tree(MindMapLayout.map);
+    map.root!.text = List.filled(20, 'topic').join(' '); // ~119 chars
+    final sizes = computeLayout(map).sizes;
+    final rootWidth = sizes[map.root!.id]!.width;
+
+    expect(rootWidth, greaterThan(kMaxNodeTextWidth),
+        reason: 'the root may grow wider than regular nodes');
+    expect(rootWidth,
+        lessThanOrEqualTo(kMaxRootTextWidth + 2 * map.nodePadding));
+    expect(sizes[map.root!.id]!.height,
+        greaterThan(sizes['a']!.height * 2),
+        reason: 'long root text wraps onto multiple lines');
+  });
+
+  test('reparent attaches under a new parent; cannot create cycles', () {
+    SharedPreferences.setMockInitialValues({});
+    final map = _tree(MindMapLayout.list);
+    final controller = EditorController(map: map, storage: MindMapStorage());
+    final rootId = map.root!.id;
+
+    // a1 is under a; reparent onto b → sibling of a under different branch.
+    expect(controller.canReparent('a1', 'b'), isTrue);
+    controller.reparent('a1', 'b');
+    expect(map.nodeById('a1')!.parentId, 'b');
+
+    // Cannot attach a under its own descendant.
+    expect(controller.canReparent('b', 'a1'), isFalse);
+
+    // Promote a1 (now under b) to root → sibling of b.
+    expect(controller.canPromote('a1'), isTrue);
+    controller.promote('a1');
+    expect(map.nodeById('a1')!.parentId, rootId);
+
+    // Root's children cannot promote further.
+    expect(controller.canPromote('a'), isFalse);
+    final before = map.nodeById('a')!.parentId;
+    controller.promote('a');
+    expect(map.nodeById('a')!.parentId, before);
+
+    controller.dispose();
+  });
+
+  test('node status round-trips through JSON; missing means none', () {
+    final map = _tree(MindMapLayout.map);
+    map.nodeById('a')!.status = NodeStatus.done;
+    map.nodeById('b')!.status = NodeStatus.inProgress;
+
+    final restored = MindMap.decode(map.encode());
+    expect(restored.nodeById('a')!.status, NodeStatus.done);
+    expect(restored.nodeById('b')!.status, NodeStatus.inProgress);
+    expect(restored.nodeById('c')!.status, NodeStatus.none);
+
+    final legacy = MindMap.decode(
+        '{"id":"m","title":"t","nodes":[{"id":"r","text":"r","x":1,"y":2}]}');
+    expect(legacy.root!.status, NodeStatus.none);
+  });
+
+  test('colorTheme round-trips through JSON, unknown values fall back', () {
+    final map = _tree(MindMapLayout.map);
+    map.colorTheme = 'earth';
+    expect(MindMap.decode(map.encode()).colorTheme, 'earth');
+
+    final bad = MindMap.decode(
+        '{"id":"m","title":"t","colorTheme":"neon","nodes":[]}');
+    expect(bad.colorTheme, 'pastel');
+  });
+
+  test('switching color theme remaps node colors by palette position', () {
+    SharedPreferences.setMockInitialValues({});
+    final map = _tree(MindMapLayout.map);
+    final controller = EditorController(map: map, storage: MindMapStorage());
+    map.root!.color = kColorThemes['pastel']![0];
+    map.nodeById('a')!.color = kColorThemes['pastel']![3];
+    map.nodeById('b')!.color = 0xFF123456; // custom color
+
+    controller.setColorTheme('vivid');
+    expect(map.colorTheme, 'vivid');
+    expect(map.root!.color, kColorThemes['vivid']![0]);
+    expect(map.nodeById('a')!.color, kColorThemes['vivid']![3]);
+    expect(map.nodeById('b')!.color, 0xFF123456,
+        reason: 'custom colors survive theme switches');
+
+    controller.undo();
+    expect(map.colorTheme, 'pastel');
+    expect(map.nodeById('a')!.color, kColorThemes['pastel']![3]);
+    controller.dispose();
   });
 
   test('sibling order in the nodes array drives list order', () {
