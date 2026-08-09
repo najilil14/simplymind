@@ -18,6 +18,9 @@ A simple, offline-first mind map app built with Flutter. One codebase runs on
 - Add child nodes, recolor them from a palette, delete branches
 - Undo / redo
 - Multiple mind maps: create, rename, duplicate, delete
+- Categories: maps live in **Home** by default; create custom categories
+  (filter chips) to organize large libraries. After 17+ maps with no
+  categories yet, the home screen offers to create one
 - All data stored **locally on the device** as JSON
   (SharedPreferences on Android, NSUserDefaults on iOS, localStorage on web)
 - Export any map as a `.json` file and import it back on any platform
@@ -31,6 +34,7 @@ A simple, offline-first mind map app built with Flutter. One codebase runs on
   "updatedAt": "2026-07-30T22:00:00.000Z",
   "layout": "map",
   "nodePadding": 8,
+  "category": "Work",
   "nodes": [
     { "id": "n1", "text": "Central topic", "x": 3000, "y": 3000, "color": 4283391477, "parentId": null },
     { "id": "n2", "text": "Branch idea", "x": 3260, "y": 2900, "color": 4278233238, "parentId": "n1", "layout": "list" }
@@ -62,6 +66,10 @@ switches unchanged.
 Nodes may include `"status": "inProgress"` or `"status": "done"`. When omitted
 (or `"none"`) no status icon is shown.
 
+Optional `"category"` is a custom folder name. When omitted (or `"Home"`),
+the map sits in the built-in Home category. Importing a map with an unknown
+category name creates that category automatically.
+
 ## Running
 
 ```bash
@@ -86,6 +94,17 @@ flutter build apk        # Android APK for direct installs
 flutter build ios        # iOS (on macOS)
 ```
 
+After `flutter build web`, public legal pages are available at:
+
+- `/privacy.html`
+- `/dmca.html`
+
+Use these URLs in app store listings. In-app copies are under **More** on the home screen.
+
+## Feedback
+
+Users can send feedback from the home screen **More → Send feedback**, which opens WhatsApp with a pre-filled message to `+6285161161577`. Contact constants live in `lib/config/app_contact.dart`.
+
 ## Releasing a new version
 
 1. Bump `version` in `pubspec.yaml` (e.g. `1.0.1+2` - always increase the
@@ -104,6 +123,15 @@ folder to any static host:
 
 Recommended cache headers: serve `index.html` and `version.json` with
 `Cache-Control: no-cache` so browsers revalidate; other assets can be cached.
+Serve over **HTTPS** (required for the service worker / installability).
+
+**Install / offline (PWA):** `web/manifest.json` enables "Add to Home Screen"
+on Android and iOS Safari. A custom service worker (`web/sw.js`) caches the
+app shell and Flutter assets after the first online visit so the installed
+shortcut opens without internet. Mind map data already lives in localStorage.
+Open the site once while online after installing so CanvasKit and
+`main.dart.js` finish caching. Updates still use the `version.json` banner;
+bump `CACHE_NAME` in `web/sw.js` if you change the worker strategy itself.
 
 **Automatic updates on web:** each build embeds its version in `version.json`.
 The page polls it (on tab focus and every 5 minutes) and shows an
@@ -138,4 +166,9 @@ lib/
   state/editor_controller.dart  editor state, undo/redo, autosave
   screens/home_screen.dart      list of saved mind maps
   screens/editor_screen.dart    the mind map canvas editor
+web/
+  index.html                    shell + SW registration + update banner
+  flutter_bootstrap.js          local CanvasKit, no Flutter cleanup SW
+  sw.js                         offline PWA cache
+  manifest.json                 Add to Home Screen metadata
 ```

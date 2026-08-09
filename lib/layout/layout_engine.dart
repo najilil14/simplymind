@@ -34,7 +34,7 @@ TextStyle nodeTextStyle(bool isRoot) => TextStyle(
 /// Extra pixels added to measured text width so the rendered [Text] widget
 /// never wraps one word earlier than [TextPainter] predicted (a common
 /// CanvasKit / font-metrics mismatch on web).
-const double _textWidthFudge = 4;
+const double kTextWidthFudge = 4;
 
 /// Measures the text content of [node], clamped to the sizing limits.
 Size _measureNodeText(MindMapNode node) {
@@ -51,7 +51,7 @@ Size _measureNodeText(MindMapNode node) {
   // only at [maxWidth] can report the width of the longest *wrapped* line
   // ("New") while the box height stays one-line tall - which clips "idea".
   painter.layout(maxWidth: double.infinity);
-  final oneLineWidth = painter.width + _textWidthFudge;
+  final oneLineWidth = painter.width + kTextWidthFudge;
 
   final double w;
   if (oneLineWidth <= maxWidth) {
@@ -119,7 +119,7 @@ LayoutResult computeLayout(MindMap map) {
   for (final n in map.nodes) {
     final content = _measureNodeText(n);
     result.sizes[n.id] = Size(
-      (content.width+20) + 2 * map.nodePadding,
+      content.width + 2 * map.nodePadding,
       content.height + 2 * map.nodePadding,
     );
   }

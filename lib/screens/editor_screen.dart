@@ -35,7 +35,46 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   late final EditorController _controller;
   final TransformationController _transform = TransformationController();
-  bool _centeredOnce = false;
+  bool _fittedOnce = false;
+  bool _chromeVisible = true;
+
+  static const double _kFitPadding = 48;
+
+  /// Union of every node box in [layout], inflated by [_kFitPadding].
+  Rect? _contentBounds(LayoutResult layout) {
+    Rect? bounds;
+    for (final entry in layout.positions.entries) {
+      final size = layout.sizes[entry.key];
+      if (size == null) continue;
+      final rect = Rect.fromCenter(
+        center: entry.value,
+        width: size.width,
+        height: size.height,
+      );
+      bounds = bounds == null ? rect : bounds.expandToInclude(rect);
+    }
+    return bounds?.inflate(_kFitPadding);
+  }
+
+  /// Scales and pans so every node fits inside [viewport], capped at 100%.
+  void _fitAll(Size viewport, LayoutResult layout) {
+    final bounds = _contentBounds(layout);
+    if (bounds == null || bounds.isEmpty) return;
+
+    final scaleX = viewport.width / bounds.width;
+    final scaleY = viewport.height / bounds.height;
+    final scale = min(scaleX, scaleY).clamp(0.2, 3.0).clamp(0.0, 1.0);
+
+    final center = bounds.center;
+    _transform.value = Matrix4.identity()
+      ..translateByDouble(
+        viewport.width / 2 - center.dx * scale,
+        viewport.height / 2 - center.dy * scale,
+        0,
+        1,
+      )
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
 
   @override
   void initState() {
@@ -49,15 +88,6 @@ class _EditorScreenState extends State<EditorScreen> {
     _controller.dispose();
     _transform.dispose();
     super.dispose();
-  }
-
-  void _centerOnRoot(Size viewport, {double scale = 1}) {
-    final root = widget.map.root;
-    if (root == null) return;
-    _transform.value = Matrix4.identity()
-      ..translateByDouble(viewport.width / 2 - root.x * scale,
-          viewport.height / 2 - root.y * scale, 0, 1)
-      ..scaleByDouble(scale, scale, 1, 1);
   }
 
   void _zoomBy(double factor, Size viewport) {
@@ -140,43 +170,48 @@ class _EditorScreenState extends State<EditorScreen> {
     return ChangeNotifierProvider<EditorController>.value(
       value: _controller,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.map.title),
-          actions: [
-            Consumer<EditorController>(
-              builder: (context, c, _) => Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Undo',
-                    icon: const Icon(Icons.undo),
-                    onPressed: c.canUndo ? c.undo : null,
+        appBar: !_chromeVisible
+            ? null
+            : AppBar(
+                title: Text(widget.map.title),
+                actions: [
+                  Consumer<EditorController>(
+                    builder: (context, c, _) => Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'Undo',
+                          icon: const Icon(Icons.undo),
+                          onPressed: c.canUndo ? c.undo : null,
+                        ),
+                        IconButton(
+                          tooltip: 'Redo',
+                          icon: const Icon(Icons.redo),
+                          onPressed: c.canRedo ? c.redo : null,
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
-                    tooltip: 'Redo',
-                    icon: const Icon(Icons.redo),
-                    onPressed: c.canRedo ? c.redo : null,
+                    tooltip: 'Map settings',
+                    icon: const Icon(Icons.tune),
+                    onPressed: _openSettings,
+                  ),
+                  IconButton(
+                    tooltip: 'Export JSON',
+                    icon: const Icon(Icons.ios_share),
+                    onPressed: _exportJson,
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              tooltip: 'Map settings',
-              icon: const Icon(Icons.tune),
-              onPressed: _openSettings,
-            ),
-            IconButton(
-              tooltip: 'Export JSON',
-              icon: const Icon(Icons.ios_share),
-              onPressed: _exportJson,
-            ),
-          ],
-        ),
         body: LayoutBuilder(
           builder: (context, constraints) {
             final viewport = constraints.biggest;
-            if (!_centeredOnce) {
-              _centeredOnce = true;
-              _centerOnRoot(viewport);
+            final safe = MediaQuery.paddingOf(context);
+            final compact = viewport.width < 560;
+            final bottomInset = 16.0 + safe.bottom;
+            if (!_fittedOnce) {
+              _fittedOnce = true;
+              _fitAll(viewport, computeLayout(_controller.map));
             }
             return Stack(
               children: [
@@ -198,25 +233,60 @@ class _EditorScreenState extends State<EditorScreen> {
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 12,
-                  left: 0,
-                  right: 0,
-                  child: Center(child: _TemplateSwitcher()),
-                ),
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: _ZoomControls(
-                    onZoomIn: () => _zoomBy(1.25, viewport),
-                    onZoomOut: () => _zoomBy(1 / 1.25, viewport),
-                    onCenter: () => _centerOnRoot(viewport),
+                if (_chromeVisible)
+                  Positioned(
+                    top: 12,
+                    left: 56,
+                    right: 56,
+                    child: Center(
+                      child: _TemplateSwitcher(compact: compact),
+                    ),
                   ),
-                ),
+                if (_chromeVisible)
+                  Positioned(
+                    right: 16,
+                    bottom: bottomInset,
+                    child: _ZoomControls(
+                      onZoomIn: () => _zoomBy(1.25, viewport),
+                      onZoomOut: () => _zoomBy(1 / 1.25, viewport),
+                      onCenter: () =>
+                          _fitAll(viewport, computeLayout(_controller.map)),
+                    ),
+                  ),
+                if (_chromeVisible && !compact)
+                  Positioned(
+                    left: 16,
+                    bottom: bottomInset,
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(maxWidth: viewport.width - 112),
+                      child: _HintBanner(),
+                    ),
+                  ),
+                // Focus-mode toggle: always visible, top-right of the canvas.
                 Positioned(
-                  left: 16,
-                  bottom: 16,
-                  child: _HintBanner(),
+                  top: 12 + (_chromeVisible ? 0 : safe.top),
+                  right: 12,
+                  child: Material(
+                    elevation: 4,
+                    shape: const CircleBorder(),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHigh
+                        .withValues(alpha: _chromeVisible ? 1 : 0.85),
+                    child: IconButton(
+                      tooltip:
+                          _chromeVisible ? 'Focus mode' : 'Show controls',
+                      icon: Icon(
+                        _chromeVisible
+                            ? Icons.fullscreen
+                            : Icons.fullscreen_exit,
+                        size: 22,
+                      ),
+                      onPressed: () =>
+                          setState(() => _chromeVisible = !_chromeVisible),
+                    ),
+                  ),
                 ),
               ],
             );
@@ -228,6 +298,11 @@ class _EditorScreenState extends State<EditorScreen> {
 }
 
 class _TemplateSwitcher extends StatelessWidget {
+  const _TemplateSwitcher({required this.compact});
+
+  /// On narrow (mobile) screens, show icons only so the switcher fits.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     return Consumer<EditorController>(
@@ -247,7 +322,8 @@ class _TemplateSwitcher extends StatelessWidget {
                 ButtonSegment(
                   value: l,
                   icon: Icon(layoutIcon(l), size: 18),
-                  label: Text(l.label),
+                  label: compact ? null : Text(l.label),
+                  tooltip: l.label,
                 ),
             ],
             selected: {c.map.layout},
@@ -1156,8 +1232,8 @@ class _ZoomControls extends StatelessWidget {
               icon: const Icon(Icons.add),
               onPressed: onZoomIn),
           IconButton(
-              tooltip: 'Center on root',
-              icon: const Icon(Icons.filter_center_focus),
+              tooltip: 'Fit all nodes',
+              icon: const Icon(Icons.fit_screen),
               onPressed: onCenter),
           IconButton(
               tooltip: 'Zoom out',

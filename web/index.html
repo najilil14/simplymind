@@ -44,6 +44,18 @@
   -->
   <script src="flutter_bootstrap.js" async></script>
 
+  <!-- Custom PWA service worker for offline "Add to Home Screen" use.
+       Flutter no longer ships a caching worker; see web/sw.js. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (err) {
+          console.warn('SimplyMind service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
+
   <!-- Update notifier: Flutter writes version.json on every build. Poll it
        and offer a one-click refresh when a newer deploy is detected. -->
   <script>

@@ -170,6 +170,13 @@ class MindMapNode {
       status: status);
 }
 
+/// Display name of the built-in default category. Maps with a null/empty
+/// [MindMap.category] belong here.
+const String kHomeCategory = 'Home';
+
+/// Offer to create categories once the user has more maps than this.
+const int kCategoryOfferThreshold = 17;
+
 class MindMap {
   MindMap({
     required this.id,
@@ -179,6 +186,7 @@ class MindMap {
     this.layout = MindMapLayout.map,
     this.nodePadding = kDefaultNodePadding,
     this.colorTheme = 'pastel',
+    this.category,
   });
 
   final String id;
@@ -195,6 +203,18 @@ class MindMap {
   /// Key into [kColorThemes]; determines the palette offered for new nodes.
   String colorTheme;
 
+  /// Custom category name. Null or empty means [kHomeCategory].
+  String? category;
+
+  /// Effective category label for display and filtering.
+  String get categoryOrHome {
+    final c = category?.trim();
+    if (c == null || c.isEmpty) return kHomeCategory;
+    return c;
+  }
+
+  bool get isInHome => categoryOrHome == kHomeCategory;
+
   /// The active palette for this map.
   List<int> get palette => kColorThemes[colorTheme] ?? kNodePalette;
 
@@ -209,13 +229,16 @@ class MindMap {
     required double centerY,
     MindMapLayout layout = MindMapLayout.map,
     double nodePadding = kDefaultNodePadding,
+    String? category,
   }) {
+    final cat = category?.trim();
     return MindMap(
       id: newId(),
       title: title,
       updatedAt: DateTime.now(),
       layout: layout,
       nodePadding: nodePadding,
+      category: (cat == null || cat.isEmpty || cat == kHomeCategory) ? null : cat,
       nodes: <MindMapNode>[
         MindMapNode(
           id: newId(),
@@ -228,22 +251,30 @@ class MindMap {
     );
   }
 
-  factory MindMap.fromJson(Map<String, dynamic> json) => MindMap(
-        id: json['id'] as String,
-        title: json['title'] as String? ?? 'Untitled',
-        updatedAt:
-            DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now(),
-        layout: MindMapLayout.fromName(json['layout'] as String?),
-        nodePadding:
-            ((json['nodePadding'] as num?)?.toDouble() ?? kDefaultNodePadding)
-                .clamp(kMinNodePadding, kMaxNodePadding),
-        colorTheme: kColorThemes.containsKey(json['colorTheme'])
-            ? json['colorTheme'] as String
-            : 'pastel',
-        nodes: (json['nodes'] as List<dynamic>? ?? const [])
-            .map((e) => MindMapNode.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+  factory MindMap.fromJson(Map<String, dynamic> json) {
+    final rawCat = (json['category'] as String?)?.trim();
+    return MindMap(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? 'Untitled',
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now(),
+      layout: MindMapLayout.fromName(json['layout'] as String?),
+      nodePadding:
+          ((json['nodePadding'] as num?)?.toDouble() ?? kDefaultNodePadding)
+              .clamp(kMinNodePadding, kMaxNodePadding),
+      colorTheme: kColorThemes.containsKey(json['colorTheme'])
+          ? json['colorTheme'] as String
+          : 'pastel',
+      category: (rawCat == null ||
+              rawCat.isEmpty ||
+              rawCat == kHomeCategory)
+          ? null
+          : rawCat,
+      nodes: (json['nodes'] as List<dynamic>? ?? const [])
+          .map((e) => MindMapNode.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -252,6 +283,10 @@ class MindMap {
         'layout': layout.name,
         'nodePadding': nodePadding,
         'colorTheme': colorTheme,
+        if (category != null &&
+            category!.trim().isNotEmpty &&
+            category != kHomeCategory)
+          'category': category,
         'nodes': nodes.map((n) => n.toJson()).toList(),
       };
 
@@ -303,6 +338,14 @@ class MindMap {
         layout: layout,
         nodePadding: nodePadding,
         colorTheme: colorTheme,
+        category: category,
         nodes: nodes.map((n) => n.copy()).toList(),
       );
+
+  /// Assigns this map to [name]. Pass null or [kHomeCategory] for Home.
+  void setCategory(String? name) {
+    final c = name?.trim();
+    category =
+        (c == null || c.isEmpty || c == kHomeCategory) ? null : c;
+  }
 }

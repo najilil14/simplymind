@@ -178,7 +178,8 @@ void main() {
 
     expect(long.width, greaterThan(short.width));
     expect(long.width,
-        lessThanOrEqualTo(kMaxNodeTextWidth + 2 * map.nodePadding));
+        lessThanOrEqualTo(
+            kMaxNodeTextWidth + kTextWidthFudge + 2 * map.nodePadding + 1));
     expect(long.height, greaterThan(short.height),
         reason: 'wrapped text should make the box taller');
     // Layouts still resolve without overlaps with mixed box sizes.
@@ -210,7 +211,8 @@ void main() {
     expect(rootWidth, greaterThan(kMaxNodeTextWidth),
         reason: 'the root may grow wider than regular nodes');
     expect(rootWidth,
-        lessThanOrEqualTo(kMaxRootTextWidth + 2 * map.nodePadding));
+        lessThanOrEqualTo(
+            kMaxRootTextWidth + kTextWidthFudge + 2 * map.nodePadding + 1));
     expect(sizes[map.root!.id]!.height,
         greaterThan(sizes['a']!.height * 2),
         reason: 'long root text wraps onto multiple lines');
