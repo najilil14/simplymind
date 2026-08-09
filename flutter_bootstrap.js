@@ -33,10 +33,14 @@ addEventListener("message", eventListener);
 if (!window._flutter) {
   window._flutter = {};
 }
-_flutter.buildConfig = {"engineRevision":"0cd610717bde95fd88343c64f81c11ba4e5c0010","builds":[{"compileTarget":"dart2js","renderer":"canvaskit","mainJsPath":"main.dart.js"},{}]};
+_flutter.buildConfig = {"engineRevision":"5a2a6a42cce67f965cf540fcecf616faca624aa1","builds":[{"compileTarget":"dart2js","renderer":"canvaskit","mainJsPath":"main.dart.js"},{}]};
 
+
+// Custom bootstrap: skip Flutter's deprecated cleanup service worker and
+// always load CanvasKit from the local build/ so the installed PWA works
+// offline (CDN canvaskit would fail without a network).
 _flutter.loader.load({
-  serviceWorkerSettings: {
-    serviceWorkerVersion: "3648045622" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
-  }
+  config: {
+    canvasKitBaseUrl: 'canvaskit/',
+  },
 });
