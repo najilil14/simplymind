@@ -22,11 +22,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Custom domain simplymind.nzilo.com is served at the site root,
+      # so base-href must be "/". Do NOT use "/simplymind/" here.
       - name: Build Web App
         run: flutter build web --release --base-href "/"
 
       - name: Deploy to gh-pages branch
-        uses: Peaceiris/actions-gh-pages@v3
+        uses: Peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
+          # Keeps the custom domain after each deploy (writes CNAME file).
+          cname: simplymind.nzilo.com

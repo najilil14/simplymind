@@ -118,7 +118,12 @@ folder to any static host:
 
 - **Netlify Drop** (fastest, no account tooling): drag the `build/web` folder
   onto https://app.netlify.com/drop
-- **Firebase Hosting / Vercel / GitHub Pages**: standard static deploys
+- **GitHub Pages** (custom domain `https://simplymind.nzilo.com`): push to
+  `main` runs `.github/workflows/deploy.yml`, builds with `--base-href "/"`,
+  and publishes `build/web` to `gh-pages` with a `CNAME` file. In
+  **Settings → Pages**: Source = **Deploy from a branch**, Branch
+  **`gh-pages` / `/ (root)`**, Custom domain = `simplymind.nzilo.com`
+  (DNS: CNAME `simplymind` → `najilil14.github.io`).
 - **Own server (Apache/nginx/XAMPP)**: copy `build/web` into the web root
 
 Recommended cache headers: serve `index.html` and `version.json` with

@@ -253,14 +253,15 @@ class _EditorScreenState extends State<EditorScreen> {
                           _fitAll(viewport, computeLayout(_controller.map)),
                     ),
                   ),
-                if (_chromeVisible && !compact)
+                if (_chromeVisible)
                   Positioned(
                     left: 16,
+                    // Leave room for the zoom column on the right.
+                    right: compact ? 72 : 96,
                     bottom: bottomInset,
-                    child: ConstrainedBox(
-                      constraints:
-                          BoxConstraints(maxWidth: viewport.width - 112),
-                      child: _HintBanner(),
+                    child: Align(
+                      alignment: Alignment.bottomLeft,
+                      child: _HintBanner(compact: compact),
                     ),
                   ),
                 // Focus-mode toggle: always visible, top-right of the canvas.
@@ -1246,20 +1247,30 @@ class _ZoomControls extends StatelessWidget {
 }
 
 class _HintBanner extends StatelessWidget {
+  const _HintBanner({required this.compact});
+
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final text = compact
+        ? 'Drag onto a node to attach\nPromote: ⇈ · Double-tap: edit'
+        : 'Drag onto a node to attach · Promote: ⇈ · Double-tap: edit';
     return Material(
       borderRadius: BorderRadius.circular(12),
       color: scheme.surfaceContainerHigh.withValues(alpha: 0.9),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 10 : 12,
+          vertical: compact ? 6 : 8,
+        ),
         child: Text(
-          'Drag onto a node to attach · Promote: ⇈ · Double-tap: edit',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: scheme.onSurfaceVariant),
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: compact ? 1.25 : null,
+              ),
         ),
       ),
     );
