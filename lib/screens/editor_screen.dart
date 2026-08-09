@@ -8,6 +8,7 @@ import '../models/mind_map.dart';
 import '../state/editor_controller.dart';
 import '../storage/json_transfer.dart';
 import '../storage/mind_map_storage.dart';
+import '../utils/map_exporter.dart';
 
 IconData layoutIcon(MindMapLayout layout) => switch (layout) {
       MindMapLayout.map => Icons.open_with,
@@ -165,6 +166,58 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
+  Future<void> _exportImage() async {
+    await _controller.flush();
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final saved = await MapExporter.exportPng(widget.map);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      if (saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mind map exported as PNG')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not export image')),
+      );
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    await _controller.flush();
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final saved = await MapExporter.exportPdf(widget.map);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      if (saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mind map exported as PDF')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not export PDF')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<EditorController>.value(
@@ -196,10 +249,45 @@ class _EditorScreenState extends State<EditorScreen> {
                     icon: const Icon(Icons.tune),
                     onPressed: _openSettings,
                   ),
-                  IconButton(
-                    tooltip: 'Export JSON',
+                  PopupMenuButton<String>(
+                    tooltip: 'Export',
                     icon: const Icon(Icons.ios_share),
-                    onPressed: _exportJson,
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'json':
+                          _exportJson();
+                        case 'png':
+                          _exportImage();
+                        case 'pdf':
+                          _exportPdf();
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'json',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.data_object),
+                          title: Text('Export JSON'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'png',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.image_outlined),
+                          title: Text('Export image (PNG)'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'pdf',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.picture_as_pdf_outlined),
+                          title: Text('Export PDF'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

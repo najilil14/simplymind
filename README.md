@@ -23,7 +23,8 @@ A simple, offline-first mind map app built with Flutter. One codebase runs on
   categories yet, the home screen offers to create one
 - All data stored **locally on the device** as JSON
   (SharedPreferences on Android, NSUserDefaults on iOS, localStorage on web)
-- Export any map as a `.json` file and import it back on any platform
+- Export any map as **JSON**, **PNG image**, or **PDF** (editor share menu);
+  import JSON back on any platform
 
 ## JSON format
 
@@ -120,10 +121,13 @@ folder to any static host:
   onto https://app.netlify.com/drop
 - **GitHub Pages** (custom domain `https://simplymind.nzilo.com`): push to
   `main` runs `.github/workflows/deploy.yml`, builds with `--base-href "/"`,
-  and publishes `build/web` to `gh-pages` with a `CNAME` file. In
-  **Settings → Pages**: Source = **Deploy from a branch**, Branch
-  **`gh-pages` / `/ (root)`**, Custom domain = `simplymind.nzilo.com`
-  (DNS: CNAME `simplymind` → `najilil14.github.io`).
+  and publishes `build/web` to `gh-pages`. A `CNAME` file
+  (`web/CNAME` + workflow) must be in every deploy; otherwise GitHub resets
+  the custom domain. In **Settings → Pages**: Source = **Deploy from a
+  branch**, Branch **`gh-pages` / `/ (root)`**, Custom domain =
+  `simplymind.nzilo.com` (DNS: CNAME `simplymind` → `najilil14.github.io`).
+  After the first good deploy, confirm `CNAME` exists on the `gh-pages`
+  branch and re-enter the domain once if needed.
 - **Own server (Apache/nginx/XAMPP)**: copy `build/web` into the web root
 
 Recommended cache headers: serve `index.html` and `version.json` with
@@ -171,6 +175,7 @@ lib/
   state/editor_controller.dart  editor state, undo/redo, autosave
   screens/home_screen.dart      list of saved mind maps
   screens/editor_screen.dart    the mind map canvas editor
+  utils/map_exporter.dart       offscreen PNG/PDF render + save
 web/
   index.html                    shell + SW registration + update banner
   flutter_bootstrap.js          local CanvasKit, no Flutter cleanup SW

@@ -34,7 +34,7 @@ TextStyle nodeTextStyle(bool isRoot) => TextStyle(
 /// Extra pixels added to measured text width so the rendered [Text] widget
 /// never wraps one word earlier than [TextPainter] predicted (a common
 /// CanvasKit / font-metrics mismatch on web).
-const double kTextWidthFudge = 4;
+const double kTextWidthFudge = 14;
 
 /// Measures the text content of [node], clamped to the sizing limits.
 Size _measureNodeText(MindMapNode node) {
@@ -105,6 +105,7 @@ class _Subtree {
   final Rect bounds;
 }
 
+const double kTextSpare = 2;
 /// Computes sizes and positions for every node of [map] according to its
 /// template mode and any per-node overrides.
 LayoutResult computeLayout(MindMap map) {
@@ -119,8 +120,8 @@ LayoutResult computeLayout(MindMap map) {
   for (final n in map.nodes) {
     final content = _measureNodeText(n);
     result.sizes[n.id] = Size(
-      content.width + 2 * map.nodePadding,
-      content.height + 2 * map.nodePadding,
+      content.width + kTextSpare * map.nodePadding,
+      content.height + kTextSpare * map.nodePadding,
     );
   }
   final root = map.root;
