@@ -27,10 +27,16 @@ jobs:
       - name: Build Web App
         run: flutter build web --release --base-href "/"
 
+      # Peaceiris force-orphans gh-pages each run. Without a CNAME file in
+      # the published folder, GitHub clears the custom domain. web/CNAME is
+      # copied by Flutter; this step guarantees it even if that ever changes.
+      - name: Ensure custom domain CNAME
+        run: echo "simplymind.nzilo.com" > build/web/CNAME
+
       - name: Deploy to gh-pages branch
         uses: Peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
-          # Keeps the custom domain after each deploy (writes CNAME file).
           cname: simplymind.nzilo.com
+

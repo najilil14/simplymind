@@ -4,6 +4,9 @@ import 'package:flutter/painting.dart';
 
 import '../models/mind_map.dart';
 
+/// Shared canvas size used by the editor and spawn placement.
+const double kCanvasSize = 6000;
+
 const double _listIndent = 44;
 const double _listGapY = 16;
 const double _stepGapX = 48;

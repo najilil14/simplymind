@@ -3,11 +3,12 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../layout/child_placement.dart';
+import '../layout/layout_engine.dart' show kCanvasSize;
 import '../models/mind_map.dart';
 import '../storage/mind_map_storage.dart';
 
-/// Canvas dimensions shared by the editor widgets.
-const double kCanvasSize = 6000;
+export '../layout/layout_engine.dart' show kCanvasSize;
 
 class EditorController extends ChangeNotifier {
   EditorController({required this.map, required this.storage});
@@ -70,16 +71,12 @@ class EditorController extends ChangeNotifier {
     if (parent == null) throw StateError('Unknown parent $parentId');
     _checkpoint();
 
-    final siblings = map.childrenOf(parentId).length;
-    // Fan children out to the right of the parent, alternating up and down.
-    final vertical = siblings.isEven
-        ? -(siblings ~/ 2) * (map.nodeHeight + 36)
-        : ((siblings + 1) ~/ 2) * (map.nodeHeight + 36);
+    final spawn = findChildSpawnPosition(map, parentId);
     final child = MindMapNode(
       id: newId(),
       text: 'New idea',
-      x: (parent.x + map.nodeWidth + 90).clamp(0, kCanvasSize),
-      y: (parent.y + vertical).clamp(0, kCanvasSize),
+      x: spawn.dx,
+      y: spawn.dy,
       color: map.palette[
           (map.palette.indexOf(parent.color) + 1) % map.palette.length],
       parentId: parentId,
