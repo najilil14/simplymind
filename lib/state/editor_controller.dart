@@ -48,6 +48,9 @@ class EditorController extends ChangeNotifier {
     map.nodes
       ..clear()
       ..addAll(restored.nodes);
+    map.links
+      ..clear()
+      ..addAll(restored.links);
     if (selectedId != null && map.nodeById(selectedId!) == null) {
       selectedId = null;
     }
@@ -66,7 +69,7 @@ class EditorController extends ChangeNotifier {
     _restore(_redoStack.removeLast());
   }
 
-  MindMapNode addChild(String parentId) {
+  MindMapNode addChild(String parentId, {String text = 'New idea'}) {
     final parent = map.nodeById(parentId);
     if (parent == null) throw StateError('Unknown parent $parentId');
     _checkpoint();
@@ -74,7 +77,7 @@ class EditorController extends ChangeNotifier {
     final spawn = findChildSpawnPosition(map, parentId);
     final child = MindMapNode(
       id: newId(),
-      text: 'New idea',
+      text: text,
       x: spawn.dx,
       y: spawn.dy,
       color: map.palette[
@@ -111,6 +114,62 @@ class EditorController extends ChangeNotifier {
     _touch();
   }
 
+  bool canAddLink(String fromId, String toId) {
+    if (fromId == toId) return false;
+    if (map.nodeById(fromId) == null || map.nodeById(toId) == null) {
+      return false;
+    }
+    return !map.links.any(
+      (l) =>
+          (l.fromId == fromId && l.toId == toId) ||
+          (l.fromId == toId && l.toId == fromId),
+    );
+  }
+
+  MindMapLink? addLink(
+    String fromId,
+    String toId, {
+    String label = '',
+    String cardinality = '',
+  }) {
+    if (!canAddLink(fromId, toId)) return null;
+    _checkpoint();
+    final link = MindMapLink(
+      id: newId(),
+      fromId: fromId,
+      toId: toId,
+      label: label.trim(),
+      cardinality: cardinality.trim(),
+    );
+    map.links.add(link);
+    _touch();
+    return link;
+  }
+
+  void updateLink(
+    String id, {
+    required String label,
+    required String cardinality,
+  }) {
+    final index = map.links.indexWhere((l) => l.id == id);
+    if (index < 0) return;
+    final link = map.links[index];
+    final nextLabel = label.trim();
+    final nextCardinality = cardinality.trim();
+    if (link.label == nextLabel && link.cardinality == nextCardinality) return;
+    _checkpoint();
+    link.label = nextLabel;
+    link.cardinality = nextCardinality;
+    _touch();
+  }
+
+  void deleteLink(String id) {
+    if (!map.links.any((l) => l.id == id)) return;
+    _checkpoint();
+    map.links.removeWhere((l) => l.id == id);
+    _touch();
+  }
+
   /// Deletes a node together with its whole subtree. The root cannot be
   /// deleted.
   void deleteSubtree(String id) {
@@ -119,6 +178,9 @@ class EditorController extends ChangeNotifier {
     _checkpoint();
     final doomed = map.subtreeIds(id);
     map.nodes.removeWhere((n) => doomed.contains(n.id));
+    map.links.removeWhere(
+      (l) => doomed.contains(l.fromId) || doomed.contains(l.toId),
+    );
     if (selectedId != null && doomed.contains(selectedId)) selectedId = null;
     _touch();
   }

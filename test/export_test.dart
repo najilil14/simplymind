@@ -15,26 +15,32 @@ void main() {
       layout: MindMapLayout.map,
     );
     final rootId = map.root!.id;
-    map.nodes.add(
-      MindMapNode(
-        id: newId(),
-        text: 'Branch A',
-        x: 3260,
-        y: 2900,
-        color: kNodePalette[1],
-        parentId: rootId,
-        status: NodeStatus.done,
-      ),
+    final a = MindMapNode(
+      id: newId(),
+      text: 'Branch A',
+      x: 3260,
+      y: 2900,
+      color: kNodePalette[1],
+      parentId: rootId,
+      status: NodeStatus.done,
     );
-    map.nodes.add(
-      MindMapNode(
+    final b = MindMapNode(
+      id: newId(),
+      text: 'Branch B',
+      x: 3260,
+      y: 3100,
+      color: kNodePalette[2],
+      parentId: rootId,
+      status: NodeStatus.inProgress,
+    );
+    map.nodes.addAll([a, b]);
+    map.links.add(
+      MindMapLink(
         id: newId(),
-        text: 'Branch B',
-        x: 3260,
-        y: 3100,
-        color: kNodePalette[2],
-        parentId: rootId,
-        status: NodeStatus.inProgress,
+        fromId: a.id,
+        toId: b.id,
+        label: 'depends on',
+        cardinality: 'N:1',
       ),
     );
     return map;

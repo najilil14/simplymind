@@ -63,6 +63,37 @@ void main() {
     expect(restored.root!.layout, isNull);
   });
 
+  test('controller manages relations and removes them with deleted nodes',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final map = _tree(MindMapLayout.map);
+    final controller =
+        EditorController(map: map, storage: MindMapStorage());
+
+    expect(controller.canAddLink('a', 'b'), isTrue);
+    final link = controller.addLink(
+      'a',
+      'b',
+      label: 'depends on',
+      cardinality: 'N:1',
+    );
+    expect(link, isNotNull);
+    expect(controller.canAddLink('b', 'a'), isFalse);
+    expect(map.links.single.label, 'depends on');
+
+    controller.updateLink(
+      link!.id,
+      label: 'uses',
+      cardinality: '1:1',
+    );
+    expect(map.links.single.label, 'uses');
+    expect(map.links.single.cardinality, '1:1');
+
+    controller.deleteSubtree('a');
+    expect(map.links, isEmpty);
+    controller.dispose();
+  });
+
   test('list mode stacks children top to bottom in sibling order', () {
     final map = _tree(MindMapLayout.list);
     final result = computeLayout(map);

@@ -1,0 +1,1 @@
+ C:\\WFD\\local\\simplymind\\lib\\l10n\\app_localizations_en.dart C:\\WFD\\local\\simplymind\\lib\\l10n\\app_localizations_id.dart C:\\WFD\\local\\simplymind\\lib\\l10n\\app_localizations.dart:  C:\\WFD\\local\\simplymind\\l10n.yaml C:\\WFD\\local\\simplymind\\lib\\l10n\\app_en.arb C:\\WFD\\local\\simplymind\\lib\\l10n\\app_id.arb

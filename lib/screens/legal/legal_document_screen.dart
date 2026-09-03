@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../content/legal_content.dart';
+import '../../l10n/app_localizations.dart';
 
 class LegalDocumentScreen extends StatelessWidget {
   const LegalDocumentScreen({
@@ -15,13 +16,14 @@ class LegalDocumentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           Text(
-            'Last updated: ${LegalContent.lastUpdated}',
+            l10n.lastUpdated(LegalContent.lastUpdated),
             style: Theme.of(context)
                 .textTheme
                 .bodySmall

@@ -22,6 +22,7 @@ const PRECACHE_URLS = [
   './icons/Icon-maskable-512.png',
   './privacy.html',
   './dmca.html',
+  './guide.html',
 ];
 
 self.addEventListener('install', (event) => {

@@ -1,0 +1,277 @@
+{
+  "@@locale": "en",
+  "appTitle": "SimplyMind",
+  "cancel": "Cancel",
+  "create": "Create",
+  "rename": "Rename",
+  "delete": "Delete",
+  "save": "Save",
+  "done": "Done",
+  "reset": "Reset",
+  "duplicate": "Duplicate",
+  "dismiss": "Dismiss",
+  "more": "More",
+  "language": "Language",
+  "languageSystem": "System default",
+  "languageEnglish": "English",
+  "languageIndonesian": "Bahasa Indonesia",
+
+  "importJson": "Import JSON",
+  "exportJson": "Export JSON",
+  "exportPng": "Export image (PNG)",
+  "exportPdf": "Export PDF",
+  "exportTooltip": "Export",
+  "exportedJson": "Mind map exported as JSON",
+  "exportedPng": "Mind map exported as PNG",
+  "exportedPdf": "Mind map exported as PDF",
+  "exportImageFailed": "Could not export image",
+  "exportPdfFailed": "Could not export PDF",
+
+  "newMindMap": "New mind map",
+  "createMindMap": "Create mind map",
+  "renameMindMap": "Rename mind map",
+  "deleteMindMapTitle": "Delete \"{title}\"?",
+  "@deleteMindMapTitle": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "deleteCannotUndo": "This cannot be undone.",
+  "titleLabel": "Title",
+  "titleHint": "e.g. Project brainstorm",
+  "template": "Template",
+  "noMindMapsYet": "No mind maps yet",
+  "noMindMapsHint": "Create your first map and start branching ideas.",
+  "importedMap": "Imported \"{title}\"",
+  "@importedMap": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "importInvalid": "That file is not a valid mind map.",
+  "nodeCount": "{count} node",
+  "@nodeCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "nodeCountPlural": "{count} nodes",
+  "@nodeCountPlural": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "todayAt": "Today {time}",
+  "@todayAt": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "yesterdayAt": "Yesterday {time}",
+  "@yesterdayAt": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+
+  "categoryAll": "All",
+  "categoryHome": "Home",
+  "categoryNew": "New",
+  "newCategory": "New category",
+  "renameCategory": "Rename category",
+  "categoryName": "Category name",
+  "categoryHint": "e.g. Work, Personal",
+  "createCategory": "Create category",
+  "moveToCategory": "Move to category",
+  "homeReserved": "\"Home\" is reserved for uncategorized maps",
+  "homeReservedShort": "\"Home\" is reserved",
+  "categoryExists": "Category \"{name}\" already exists",
+  "@categoryExists": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "deleteCategoryTitle": "Delete \"{name}\"?",
+  "@deleteCategoryTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "deleteCategoryBody": "Maps in this category move back to Home. The maps themselves are not deleted.",
+  "renameCategoryItem": "Rename \"{name}\"",
+  "@renameCategoryItem": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "deleteCategoryItem": "Delete \"{name}\"",
+  "@deleteCategoryItem": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "organizeMapsTitle": "Organize your maps?",
+  "organizeMapsBody": "You have more than {count} mind maps. Create categories to keep them tidy.",
+  "@organizeMapsBody": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "notNow": "Not now",
+  "noMapsInCategory": "No maps in {name}",
+  "@noMapsInCategory": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "noMapsInCategoryHint": "Create a new mind map here, or move an existing one into this category.",
+
+  "sendFeedback": "Send feedback",
+  "privacyPolicy": "Privacy Policy",
+  "dmca": "DMCA",
+  "lastUpdated": "Last updated: {date}",
+  "@lastUpdated": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "feedbackPrefill": "I'm using SimplyMind and I have some feedback for you: ",
+  "whatsAppFailed": "Could not open WhatsApp. Open {url} manually, or message {number}.",
+  "@whatsAppFailed": {
+    "placeholders": {
+      "url": {"type": "String"},
+      "number": {"type": "String"}
+    }
+  },
+
+  "layoutMap": "Map",
+  "layoutList": "List",
+  "layoutStep": "Step",
+  "layoutGraph": "Graph",
+  "layoutMapDesc": "Free positioning by dragging",
+  "layoutListDesc": "Indented outline, top to bottom",
+  "layoutStepDesc": "Numbered sequence with arrows",
+  "layoutGraphDesc": "Radial branches around the node",
+  "layoutInherit": "Inherit",
+  "layoutInheritDesc": "Follow the map template",
+
+  "statusNone": "No status",
+  "statusInProgress": "In progress",
+  "statusDone": "Done",
+
+  "undo": "Undo",
+  "redo": "Redo",
+  "mapSettings": "Map settings",
+  "nodePaddingLabel": "Node padding: {px} px",
+  "@nodePaddingLabel": {
+    "placeholders": {
+      "px": {"type": "int"}
+    }
+  },
+  "nodePaddingHelp": "Space between the text and the node box. The change is previewed live and saved with this mind map.",
+  "focusMode": "Focus mode",
+  "showControls": "Show controls",
+  "editNode": "Edit node",
+  "newNode": "New node",
+  "newIdea": "New idea",
+  "nodeColor": "Node color",
+  "customColor": "Custom color",
+  "useCustomColor": "Use custom color",
+  "nodeStatus": "Node status",
+  "branchTemplate": "Branch template",
+  "addChild": "Add child",
+  "moveLeft": "Move left",
+  "moveUp": "Move up",
+  "moveRight": "Move right",
+  "moveDown": "Move down",
+  "promote": "Promote (sibling of parent)",
+  "status": "Status",
+  "color": "Color",
+  "deleteBranch": "Delete branch",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "fitAllNodes": "Fit all nodes",
+  "hintBanner": "Drag onto a node to attach · Promote: ⇈ · Double-tap: edit",
+  "hintBannerCompact": "Drag onto a node to attach\nPromote: ⇈ · Double-tap: edit",
+  "themeVivid": "Vivid",
+  "themePastel": "Pastel",
+  "themeEarth": "Earth",
+  "hue": "Hue",
+  "sat": "Sat",
+  "bright": "Bright",
+
+  "layoutSection": "Layout",
+  "starterSection": "Starter",
+  "starterBlank": "Blank",
+  "starterPrd": "PRD",
+  "starterEntities": "Entities",
+  "starterBlankDesc": "One central node. Build from scratch.",
+  "starterPrdDesc": "Product requirements outline: problem, goals, users, scope.",
+  "starterEntitiesDesc": "Sample entities with attributes — a sketch of related tables.",
+
+  "prdProblem": "Problem / opportunity",
+  "prdGoals": "Goals",
+  "prdGoalExample": "Goal 1",
+  "prdUsers": "Users & personas",
+  "prdPersona": "Persona",
+  "prdRequirements": "Requirements",
+  "prdMustHave": "Must have",
+  "prdNiceToHave": "Nice to have",
+  "prdScope": "Scope",
+  "prdInScope": "In scope",
+  "prdOutOfScope": "Out of scope",
+  "prdMetrics": "Success metrics",
+  "prdQuestions": "Open questions",
+
+  "entityUser": "User",
+  "entityAccount": "Account",
+  "entityOrder": "Order",
+  "entityProduct": "Product",
+  "attrId": "id",
+  "attrName": "name",
+  "attrEmail": "email",
+  "attrUserId": "userId",
+  "attrAccountId": "accountId",
+  "attrStatus": "status",
+  "attrTotal": "total",
+  "attrSku": "sku",
+  "attrPrice": "price",
+
+  "howToUse": "How to use",
+  "helpIntro": "SimplyMind is a local, offline-first mind map. Maps stay on this device as JSON. This guide covers the home list, the canvas editor, starters, export, and install.",
+  "helpHomeTitle": "Home: your maps",
+  "helpHomeBody": "The home screen lists every mind map on this device, newest first. Tap a map to open the editor. Use the ⋮ menu on a row to rename, duplicate, move to a category, export JSON, or delete.\n\nThe + New mind map button starts a title, starter, and layout. Import JSON from the folder icon in the top bar.",
+  "helpCreateTitle": "Create: starter and layout",
+  "helpCreateBody": "Starter is the content you begin with. Blank is one central node. PRD is a product-outline (problem, goals, users, requirements, scope). Entities is a sketch of related tables (User, Account, Order, Product) with fields as children — not a full database diagram.\n\nLayout is how nodes sit: Map (drag freely), List (outline), Step (numbered flow), Graph (around the parent). You can change layout later in the editor. Picking PRD suggests List; Entities suggests Graph.",
+  "helpEditTitle": "Editor: nodes and branches",
+  "helpEditBody": "Tap a node to select it and show the toolbar. Double-tap to edit text. + adds a child (in Map mode it finds free space near siblings). Drag a non-root node onto another to reparent. Promote (⇈) makes a node a sibling of its parent.\n\nIn List/Step/Graph, use the arrow buttons to reorder siblings. Branch template overrides layout for that subtree. Status (none / in progress / done) and color live on each node. Map settings (tune icon) change padding between text and the box.",
+  "helpCanvasTitle": "Canvas: zoom and focus",
+  "helpCanvasBody": "Pinch or use + / − to zoom. Fit-all shows every node on screen (also used when you first open a map). Focus mode (fullscreen icon) hides the top bar and overlays so you can think on a wider canvas. The hint at the bottom summarizes drag, promote, and double-tap.",
+  "helpOrganizeTitle": "Categories",
+  "helpOrganizeBody": "Maps start in Home. After many maps, SimplyMind offers categories. Create them from More or the chip row. Filter with All / Home / your names. Move a map from its ⋮ menu. Deleting a category sends maps back to Home; it does not delete the maps.",
+  "helpExportTitle": "Export, import, and share",
+  "helpExportBody": "In the editor, the share menu exports JSON (editable backup), PNG (picture of the whole map), or PDF. JSON import is on the home screen. PNG/PDF redraw the full tree — not a screenshot of the current zoom.",
+  "helpOfflineTitle": "Web, install, and offline",
+  "helpOfflineBody": "On the website you can Add to Home Screen. After one online visit, the app can open without internet (service worker). Maps stay in local storage. Open the site on HTTPS. iOS may clear unused site data after weeks — export JSON if you need a backup. Native Android/iOS builds store data on the device without that web limit.",
+  "helpLanguageTitle": "Language",
+  "helpLanguageBody": "More → Language: follow the device, English, or Bahasa Indonesia. Menus and this guide change; text you typed in nodes does not.",
+  "helpFeedbackTitle": "Feedback and legal",
+  "helpFeedbackBody": "More → Send feedback opens WhatsApp with a short pre-filled message. Privacy Policy and DMCA are in the same menu.",
+
+  "relations": "Relations",
+  "manageRelations": "Manage relations",
+  "addRelation": "Add relation",
+  "editRelation": "Edit relation",
+  "removeRelation": "Remove relation",
+  "relationTarget": "Link to node",
+  "relationLabel": "Relation label",
+  "relationLabelHint": "e.g. belongs to",
+  "relationCardinality": "Cardinality",
+  "relationCardinalityHint": "e.g. N:1",
+  "noRelations": "No extra relations yet.",
+  "noRelationTargets": "Every other node is already linked.",
+  "relationBelongsTo": "belongs to",
+  "relationContains": "contains",
+  "helpRelationsTitle": "Extra relations",
+  "helpRelationsBody": "A node has one parent for layout, but it can also have many extra relations. Select a node → Relations, choose another node, then add an optional label and cardinality (for example belongs to, N:1). Relations use curved dashed arrows attached to box edges and do not change the tree layout. A relation that duplicates a parent-child branch is not drawn twice."
+}

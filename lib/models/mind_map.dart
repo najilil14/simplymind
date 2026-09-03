@@ -170,6 +170,52 @@ class MindMapNode {
       status: status);
 }
 
+/// An extra, non-hierarchical edge between two nodes.
+///
+/// Tree structure and automatic layout still use [MindMapNode.parentId].
+/// Relations only add visual/semantic links and therefore allow many edges
+/// per node without turning the layout tree into a cyclic graph.
+class MindMapLink {
+  MindMapLink({
+    required this.id,
+    required this.fromId,
+    required this.toId,
+    this.label = '',
+    this.cardinality = '',
+  });
+
+  final String id;
+  final String fromId;
+  final String toId;
+  String label;
+  String cardinality;
+
+  factory MindMapLink.fromJson(Map<String, dynamic> json) => MindMapLink(
+        id: json['id'] as String? ?? newId(),
+        fromId: json['from'] as String,
+        toId: json['to'] as String,
+        label: json['label'] as String? ?? '',
+        cardinality: json['cardinality'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'from': fromId,
+        'to': toId,
+        if (label.trim().isNotEmpty) 'label': label.trim(),
+        if (cardinality.trim().isNotEmpty)
+          'cardinality': cardinality.trim(),
+      };
+
+  MindMapLink copy() => MindMapLink(
+        id: id,
+        fromId: fromId,
+        toId: toId,
+        label: label,
+        cardinality: cardinality,
+      );
+}
+
 /// Display name of the built-in default category. Maps with a null/empty
 /// [MindMap.category] belong here.
 const String kHomeCategory = 'Home';
@@ -183,16 +229,18 @@ class MindMap {
     required this.title,
     required this.updatedAt,
     required this.nodes,
+    List<MindMapLink>? links,
     this.layout = MindMapLayout.map,
     this.nodePadding = kDefaultNodePadding,
     this.colorTheme = 'pastel',
     this.category,
-  });
+  }) : links = links ?? <MindMapLink>[];
 
   final String id;
   String title;
   DateTime updatedAt;
   final List<MindMapNode> nodes;
+  final List<MindMapLink> links;
 
   /// Template mode for the whole map (nodes may override per subtree).
   MindMapLayout layout;
@@ -273,6 +321,9 @@ class MindMap {
       nodes: (json['nodes'] as List<dynamic>? ?? const [])
           .map((e) => MindMapNode.fromJson(e as Map<String, dynamic>))
           .toList(),
+      links: (json['links'] as List<dynamic>? ?? const [])
+          .map((e) => MindMapLink.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -288,6 +339,7 @@ class MindMap {
             category != kHomeCategory)
           'category': category,
         'nodes': nodes.map((n) => n.toJson()).toList(),
+        if (links.isNotEmpty) 'links': links.map((l) => l.toJson()).toList(),
       };
 
   String encode({bool pretty = false}) => pretty
@@ -340,7 +392,12 @@ class MindMap {
         colorTheme: colorTheme,
         category: category,
         nodes: nodes.map((n) => n.copy()).toList(),
+        links: links.map((l) => l.copy()).toList(),
       );
+
+  List<MindMapLink> linksFor(String nodeId) => links
+      .where((l) => l.fromId == nodeId || l.toId == nodeId)
+      .toList();
 
   /// Assigns this map to [name]. Pass null or [kHomeCategory] for Home.
   void setCategory(String? name) {

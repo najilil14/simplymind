@@ -9,6 +9,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../layout/layout_engine.dart';
+import '../layout/relation_painter.dart';
 import '../models/mind_map.dart';
 
 /// Renders a mind map to PNG / PDF and saves via the system picker.
@@ -173,6 +174,7 @@ class MapExporter {
   static void _paintEdges(Canvas canvas, MindMap map, LayoutResult layout) {
     final positions = layout.positions;
     final sizes = layout.sizes;
+    paintMindMapRelations(canvas, map, positions, sizes);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3

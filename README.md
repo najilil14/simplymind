@@ -6,11 +6,17 @@ A simple, offline-first mind map app built with Flutter. One codebase runs on
 ## Features
 
 - Infinite pan/zoom canvas with draggable nodes and curved connector lines
-- Four template modes, switchable at any time:
+- Four layout modes, switchable at any time:
   - **Map** - free-form canvas, drag nodes anywhere (bezier connectors)
   - **List** - indented outline, top to bottom (elbow connectors)
   - **Step** - numbered sequence with arrows between steps
   - **Graph** - radial auto-layout around the root
+- Starter maps when creating: **Blank**, **PRD** (product outline),
+  **Entities** (sample tables/attributes with prebuilt relations)
+- Extra many-to-many relation edges between any two nodes, with optional
+  labels and cardinality (`N:1`, `1:1`, `N:N`). Tree parents still control
+  layout; curved dashed arrows attach to node-box edges and do not affect
+  placement. Parent-child duplicates are not drawn twice
 - Per-branch template override: any node can lay out its own subtree
   in a different mode than the rest of the map
 - Tap to select, double-tap to edit text, drag to move a whole branch
@@ -21,6 +27,7 @@ A simple, offline-first mind map app built with Flutter. One codebase runs on
 - Categories: maps live in **Home** by default; create custom categories
   (filter chips) to organize large libraries. After 17+ maps with no
   categories yet, the home screen offers to create one
+- **English + Bahasa Indonesia** UI (More → Language), or follow the device
 - All data stored **locally on the device** as JSON
   (SharedPreferences on Android, NSUserDefaults on iOS, localStorage on web)
 - Export any map as **JSON**, **PNG image**, or **PDF** (editor share menu);
@@ -39,6 +46,9 @@ A simple, offline-first mind map app built with Flutter. One codebase runs on
   "nodes": [
     { "id": "n1", "text": "Central topic", "x": 3000, "y": 3000, "color": 4283391477, "parentId": null },
     { "id": "n2", "text": "Branch idea", "x": 3260, "y": 2900, "color": 4278233238, "parentId": "n1", "layout": "list" }
+  ],
+  "links": [
+    { "id": "l1", "from": "n1", "to": "n2", "label": "relates to", "cardinality": "1:N" }
   ]
 }
 ```
@@ -66,6 +76,10 @@ switches unchanged.
 
 Nodes may include `"status": "inProgress"` or `"status": "done"`. When omitted
 (or `"none"`) no status icon is shown.
+
+`links` are optional extra relations between nodes. They are independent of
+`parentId`: a node keeps one tree parent for layout but can have many dashed,
+labeled relation edges.
 
 Optional `"category"` is a custom folder name. When omitted (or `"Home"`),
 the map sits in the built-in Home category. Importing a map with an unknown
@@ -95,12 +109,13 @@ flutter build apk        # Android APK for direct installs
 flutter build ios        # iOS (on macOS)
 ```
 
-After `flutter build web`, public legal pages are available at:
+After `flutter build web`, public pages are available at:
 
 - `/privacy.html`
 - `/dmca.html`
+- `/guide.html` (how to use; in-app copy is localized)
 
-Use these URLs in app store listings. In-app copies are under **More** on the home screen.
+Use these URLs in app store listings. In-app copies are under **More** on the home screen (**How to use**, Privacy, DMCA).
 
 ## Feedback
 
@@ -174,6 +189,8 @@ lib/
   storage/json_transfer.dart    export / import as .json files
   state/editor_controller.dart  editor state, undo/redo, autosave
   screens/home_screen.dart      list of saved mind maps
+  screens/help_screen.dart      how-to-use guide
+  templates/map_starters.dart   PRD / Entities seed trees
   screens/editor_screen.dart    the mind map canvas editor
   utils/map_exporter.dart       offscreen PNG/PDF render + save
 web/

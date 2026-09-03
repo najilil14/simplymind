@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/l10n_ext.dart';
 import '../models/mind_map.dart';
 import '../state/editor_controller.dart';
+import '../state/locale_controller.dart';
 import '../storage/json_transfer.dart';
 import '../storage/mind_map_storage.dart';
+import '../templates/map_starters.dart';
 import '../utils/feedback_launcher.dart';
 import 'editor_screen.dart';
+import 'help_screen.dart';
 import 'legal/dmca_screen.dart';
 import 'legal/privacy_policy_screen.dart';
 
@@ -104,10 +110,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<String?> _promptForName({
     required String dialogTitle,
     String initial = '',
-    String label = 'Name',
+    required String label,
     String hint = '',
-    String confirmLabel = 'Create',
+    required String confirmLabel,
   }) async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: initial);
     final result = await showDialog<String>(
       context: context,
@@ -126,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
@@ -139,24 +146,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _createCategory() async {
+    final l10n = AppLocalizations.of(context);
     final name = await _promptForName(
-      dialogTitle: 'New category',
-      label: 'Category name',
-      hint: 'e.g. Work, Personal',
-      confirmLabel: 'Create',
+      dialogTitle: l10n.newCategory,
+      label: l10n.categoryName,
+      hint: l10n.categoryHint,
+      confirmLabel: l10n.create,
     );
     if (name == null) return;
     if (name == kHomeCategory) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('"Home" is reserved for uncategorized maps')),
+        SnackBar(content: Text(l10n.homeReserved)),
       );
       return;
     }
     if (_categories.any((c) => c.toLowerCase() == name.toLowerCase())) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Category "$name" already exists')),
+        SnackBar(content: Text(l10n.categoryExists(name))),
       );
       return;
     }
@@ -172,17 +180,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _renameCategory(String oldName) async {
+    final l10n = AppLocalizations.of(context);
     final name = await _promptForName(
-      dialogTitle: 'Rename category',
+      dialogTitle: l10n.renameCategory,
       initial: oldName,
-      label: 'Category name',
-      confirmLabel: 'Rename',
+      label: l10n.categoryName,
+      confirmLabel: l10n.rename,
     );
     if (name == null || name == oldName) return;
     if (name == kHomeCategory) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('"Home" is reserved')),
+        SnackBar(content: Text(l10n.homeReservedShort)),
       );
       return;
     }
@@ -190,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
         (c) => c != oldName && c.toLowerCase() == name.toLowerCase())) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Category "$name" already exists')),
+        SnackBar(content: Text(l10n.categoryExists(name))),
       );
       return;
     }
@@ -210,24 +219,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteCategory(String name) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete "$name"?'),
-        content: const Text(
-          'Maps in this category move back to Home. The maps themselves are not deleted.',
-        ),
+        title: Text(l10n.deleteCategoryTitle(name)),
+        content: Text(l10n.deleteCategoryBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -254,16 +262,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _moveToCategory(MindMap map) async {
+    final l10n = AppLocalizations.of(context);
     final options = <String>[kHomeCategory, ..._categories];
     final current = map.categoryOrHome;
     final chosen = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Move to category'),
+        title: Text(l10n.moveToCategory),
         children: [
           for (final c in options)
             ListTile(
-              title: Text(c),
+              title: Text(
+                c == kHomeCategory ? l10n.categoryHome : c,
+              ),
               trailing: c == current
                   ? Icon(Icons.check,
                       color: Theme.of(context).colorScheme.primary)
@@ -281,54 +292,86 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _createMap() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     var layout = MindMapLayout.map;
+    var starter = MapStarter.blank;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('New mind map'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'e.g. Project brainstorm',
+          title: Text(l10n.newMindMap),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: l10n.titleLabel,
+                    hintText: l10n.titleHint,
+                  ),
+                  onSubmitted: (_) => Navigator.of(context).pop(true),
                 ),
-                onSubmitted: (_) => Navigator.of(context).pop(true),
-              ),
-              const SizedBox(height: 20),
-              Text('Template',
-                  style: Theme.of(context).textTheme.labelLarge),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final l in MindMapLayout.values)
-                    ChoiceChip(
-                      avatar: Icon(layoutIcon(l), size: 18),
-                      label: Text(l.label),
-                      selected: layout == l,
-                      onSelected: (_) => setDialogState(() => layout = l),
-                    ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 20),
+                Text(l10n.starterSection,
+                    style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final s in MapStarter.values)
+                      ChoiceChip(
+                        avatar: Icon(_starterIcon(s), size: 18),
+                        label: Text(l10n.starterLabel(s)),
+                        selected: starter == s,
+                        tooltip: l10n.starterDescription(s),
+                        onSelected: (_) => setDialogState(() {
+                          starter = s;
+                          if (s != MapStarter.blank) {
+                            layout = suggestedLayoutFor(s);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.starterDescription(starter),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 20),
+                Text(l10n.layoutSection,
+                    style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final l in MindMapLayout.values)
+                      ChoiceChip(
+                        avatar: Icon(layoutIcon(l), size: 18),
+                        label: Text(l10n.layoutLabel(l)),
+                        selected: layout == l,
+                        onSelected: (_) => setDialogState(() => layout = l),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Create'),
+              child: Text(l10n.create),
             ),
           ],
         ),
@@ -343,18 +386,26 @@ class _HomeScreenState extends State<HomeScreen> {
       layout: layout,
       category: _defaultCategoryForNew,
     );
+    applyMapStarter(map, starter, l10n);
     await _storage.save(map);
     await _reload();
     if (mounted) await _openEditor(map);
   }
 
+  IconData _starterIcon(MapStarter starter) => switch (starter) {
+        MapStarter.blank => Icons.notes_outlined,
+        MapStarter.prd => Icons.article_outlined,
+        MapStarter.entities => Icons.schema_outlined,
+      };
+
   Future<void> _renameMap(MindMap map) async {
+    final l10n = AppLocalizations.of(context);
     final title = await _promptForName(
-      dialogTitle: 'Rename mind map',
+      dialogTitle: l10n.renameMindMap,
       initial: map.title,
-      label: 'Title',
-      hint: 'e.g. Project brainstorm',
-      confirmLabel: 'Rename',
+      label: l10n.titleLabel,
+      hint: l10n.titleHint,
+      confirmLabel: l10n.rename,
     );
     if (title == null) return;
     map.title = title;
@@ -372,22 +423,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteMap(MindMap map) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete "${map.title}"?'),
-        content: const Text('This cannot be undone.'),
+        title: Text(l10n.deleteMindMapTitle(map.title)),
+        content: Text(l10n.deleteCannotUndo),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -398,6 +450,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _importMap() async {
+    final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final imported = await JsonTransfer.importMap();
@@ -409,16 +462,17 @@ class _HomeScreenState extends State<HomeScreen> {
       await _storage.save(imported);
       await _reload();
       messenger.showSnackBar(
-        SnackBar(content: Text('Imported "${imported.title}"')),
+        SnackBar(content: Text(l10n.importedMap(imported.title))),
       );
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('That file is not a valid mind map.')),
+        SnackBar(content: Text(l10n.importInvalid)),
       );
     }
   }
 
   Future<void> _showCategoryActions(String name) async {
+    final l10n = AppLocalizations.of(context);
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
@@ -427,13 +481,13 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.drive_file_rename_outline),
-              title: Text('Rename "$name"'),
+              title: Text(l10n.renameCategoryItem(name)),
               onTap: () => Navigator.of(context).pop('rename'),
             ),
             ListTile(
               leading: Icon(Icons.delete_outline,
                   color: Theme.of(context).colorScheme.error),
-              title: Text('Delete "$name"',
+              title: Text(l10n.deleteCategoryItem(name),
                   style: TextStyle(
                       color: Theme.of(context).colorScheme.error)),
               onTap: () => Navigator.of(context).pop('delete'),
@@ -446,36 +500,97 @@ class _HomeScreenState extends State<HomeScreen> {
     if (action == 'delete') await _deleteCategory(name);
   }
 
+  Future<void> _pickLanguage() async {
+    final l10n = AppLocalizations.of(context);
+    final localeController = context.read<LocaleController>();
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final current = localeController.overrideLocale;
+        Widget option(Locale? locale) {
+          final label = LocaleController.labelFor(
+            locale,
+            system: l10n.languageSystem,
+            en: l10n.languageEnglish,
+            id: l10n.languageIndonesian,
+          );
+          final selected = locale == null
+              ? current == null
+              : current?.languageCode == locale.languageCode;
+          return ListTile(
+            title: Text(label),
+            trailing: selected
+                ? Icon(Icons.check,
+                    color: Theme.of(context).colorScheme.primary)
+                : null,
+            onTap: () {
+              Navigator.of(context).pop();
+              localeController.setLocale(locale);
+            },
+          );
+        }
+
+        return SimpleDialog(
+          title: Text(l10n.language),
+          children: [
+            option(null),
+            option(const Locale('en')),
+            option(const Locale('id')),
+          ],
+        );
+      },
+    );
+  }
+
   String _formatDate(DateTime dt) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(dt.year, dt.month, dt.day);
     final hm =
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    if (day == today) return 'Today $hm';
-    if (day == today.subtract(const Duration(days: 1))) return 'Yesterday $hm';
+    if (day == today) return l10n.todayAt(hm);
+    if (day == today.subtract(const Duration(days: 1))) {
+      return l10n.yesterdayAt(hm);
+    }
     return '${dt.day}/${dt.month}/${dt.year} $hm';
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final maps = _maps;
     final filtered = _filteredMaps;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SimplyMind'),
+        title: Text(l10n.appTitle),
         actions: [
           IconButton(
-            tooltip: 'Import JSON',
+            tooltip: l10n.howToUse,
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+            ),
+          ),
+          IconButton(
+            tooltip: l10n.importJson,
             icon: const Icon(Icons.file_open_outlined),
             onPressed: _importMap,
           ),
           PopupMenuButton<String>(
-            tooltip: 'More',
+            tooltip: l10n.more,
             onSelected: (value) {
               switch (value) {
                 case 'new_category':
                   _createCategory();
+                case 'language':
+                  _pickLanguage();
+                case 'help':
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HelpScreen(),
+                    ),
+                  );
                 case 'feedback':
                   openWhatsAppFeedback(context);
                 case 'privacy':
@@ -493,38 +608,54 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'new_category',
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.create_new_folder_outlined),
-                  title: Text('New category'),
+                  leading: const Icon(Icons.create_new_folder_outlined),
+                  title: Text(l10n.newCategory),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'language',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.language),
+                  title: Text(l10n.language),
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(
+              PopupMenuItem(
+                value: 'help',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.help_outline),
+                  title: Text(l10n.howToUse),
+                ),
+              ),
+              PopupMenuItem(
                 value: 'feedback',
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.chat_outlined),
-                  title: Text('Send feedback'),
+                  leading: const Icon(Icons.chat_outlined),
+                  title: Text(l10n.sendFeedback),
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'privacy',
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.privacy_tip_outlined),
-                  title: Text('Privacy Policy'),
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  title: Text(l10n.privacyPolicy),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'dmca',
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.gavel_outlined),
-                  title: Text('DMCA'),
+                  leading: const Icon(Icons.gavel_outlined),
+                  title: Text(l10n.dmca),
                 ),
               ),
             ],
@@ -534,12 +665,19 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createMap,
         icon: const Icon(Icons.add),
-        label: const Text('New mind map'),
+        label: Text(l10n.newMindMap),
       ),
       body: maps == null
           ? const Center(child: CircularProgressIndicator())
           : maps.isEmpty
-              ? _EmptyState(onCreate: _createMap)
+              ? _EmptyState(
+                  onCreate: _createMap,
+                  onHelp: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HelpScreen(),
+                    ),
+                  ),
+                )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -580,6 +718,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildChipRow() {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -588,7 +727,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: const Text('All'),
+              label: Text(l10n.categoryAll),
               selected: _selectedFilter == _kFilterAll,
               onSelected: (_) =>
                   setState(() => _selectedFilter = _kFilterAll),
@@ -597,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(kHomeCategory),
+              label: Text(l10n.categoryHome),
               selected: _selectedFilter == kHomeCategory,
               onSelected: (_) =>
                   setState(() => _selectedFilter = kHomeCategory),
@@ -616,7 +755,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ActionChip(
             avatar: const Icon(Icons.add, size: 18),
-            label: const Text('New'),
+            label: Text(l10n.categoryNew),
             onPressed: _createCategory,
           ),
         ],
@@ -625,6 +764,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildOfferBanner() {
+    final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.secondaryContainer,
@@ -640,15 +780,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Organize your maps?',
+                    l10n.organizeMapsTitle,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: scheme.onSecondaryContainer,
                         ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'You have more than $kCategoryOfferThreshold mind maps. '
-                    'Create categories to keep them tidy.',
+                    l10n.organizeMapsBody(kCategoryOfferThreshold),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSecondaryContainer,
                         ),
@@ -659,11 +798,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       FilledButton(
                         onPressed: _createCategory,
-                        child: const Text('Create category'),
+                        child: Text(l10n.createCategory),
                       ),
                       TextButton(
                         onPressed: _dismissBanner,
-                        child: const Text('Not now'),
+                        child: Text(l10n.notNow),
                       ),
                     ],
                   ),
@@ -671,7 +810,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             IconButton(
-              tooltip: 'Dismiss',
+              tooltip: l10n.dismiss,
               icon: Icon(Icons.close, color: scheme.onSecondaryContainer),
               onPressed: _dismissBanner,
             ),
@@ -707,7 +846,11 @@ class _MapTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final variant = Theme.of(context).colorScheme.onSurfaceVariant;
+    final categoryLabel = map.categoryOrHome == kHomeCategory
+        ? l10n.categoryHome
+        : map.categoryOrHome;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
@@ -724,9 +867,9 @@ class _MapTile extends StatelessWidget {
             Expanded(
               child: Text(
                 [
-                  if (showCategory) map.categoryOrHome,
-                  map.layout.label,
-                  '${map.nodes.length} node${map.nodes.length == 1 ? '' : 's'}',
+                  if (showCategory) categoryLabel,
+                  l10n.layoutLabel(map.layout),
+                  l10n.nodesLabel(map.nodes.length),
                   dateLabel,
                 ].join(' · '),
                 overflow: TextOverflow.ellipsis,
@@ -750,13 +893,13 @@ class _MapTile extends StatelessWidget {
                 onDelete();
             }
           },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'rename', child: Text('Rename')),
-            PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
+          itemBuilder: (context) => [
+            PopupMenuItem(value: 'rename', child: Text(l10n.rename)),
+            PopupMenuItem(value: 'duplicate', child: Text(l10n.duplicate)),
             PopupMenuItem(
-                value: 'move', child: Text('Move to category')),
-            PopupMenuItem(value: 'export', child: Text('Export JSON')),
-            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                value: 'move', child: Text(l10n.moveToCategory)),
+            PopupMenuItem(value: 'export', child: Text(l10n.exportJson)),
+            PopupMenuItem(value: 'delete', child: Text(l10n.delete)),
           ],
         ),
       ),
@@ -765,12 +908,14 @@ class _MapTile extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onCreate});
+  const _EmptyState({required this.onCreate, required this.onHelp});
 
   final VoidCallback onCreate;
+  final VoidCallback onHelp;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
@@ -778,11 +923,11 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(Icons.bubble_chart_outlined, size: 72, color: scheme.primary),
           const SizedBox(height: 16),
-          Text('No mind maps yet',
+          Text(l10n.noMindMapsYet,
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(
-            'Create your first map and start branching ideas.',
+            l10n.noMindMapsHint,
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium
@@ -792,7 +937,13 @@ class _EmptyState extends StatelessWidget {
           FilledButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add),
-            label: const Text('Create mind map'),
+            label: Text(l10n.createMindMap),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: onHelp,
+            icon: const Icon(Icons.help_outline),
+            label: Text(l10n.howToUse),
           ),
         ],
       ),
@@ -808,8 +959,11 @@ class _FilteredEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final label = category ?? 'this filter';
+    final label = category == null
+        ? l10n.categoryAll
+        : (category == kHomeCategory ? l10n.categoryHome : category!);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -820,13 +974,13 @@ class _FilteredEmpty extends StatelessWidget {
                 size: 56, color: scheme.onSurfaceVariant),
             const SizedBox(height: 12),
             Text(
-              'No maps in $label',
+              l10n.noMapsInCategory(label),
               style: Theme.of(context).textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Create a new mind map here, or move an existing one into this category.',
+              l10n.noMapsInCategoryHint,
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
@@ -837,7 +991,7 @@ class _FilteredEmpty extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: const Text('New mind map'),
+              label: Text(l10n.newMindMap),
             ),
           ],
         ),

@@ -3,7 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/l10n_ext.dart';
 import '../layout/layout_engine.dart';
+import '../layout/relation_painter.dart';
 import '../models/mind_map.dart';
 import '../state/editor_controller.dart';
 import '../storage/json_transfer.dart';
@@ -105,10 +108,11 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _openSettings() async {
+    final l10n = AppLocalizations.of(context);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Map settings'),
+        title: Text(l10n.mapSettings),
         content: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) => Column(
@@ -116,13 +120,12 @@ class _EditorScreenState extends State<EditorScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Node padding: ${_controller.map.nodePadding.round()} px',
+                l10n.nodePaddingLabel(_controller.map.nodePadding.round()),
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 4),
               Text(
-                'Space between the text and the node box. The change is '
-                'previewed live and saved with this mind map.',
+                l10n.nodePaddingHelp,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               Slider(
@@ -145,11 +148,11 @@ class _EditorScreenState extends State<EditorScreen> {
               _controller.setNodePadding(kDefaultNodePadding);
               _controller.endMove();
             },
-            child: const Text('Reset'),
+            child: Text(l10n.reset),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Done'),
+            child: Text(l10n.done),
           ),
         ],
       ),
@@ -161,7 +164,7 @@ class _EditorScreenState extends State<EditorScreen> {
     final saved = await JsonTransfer.exportMap(widget.map);
     if (saved && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mind map exported as JSON')),
+        SnackBar(content: Text(AppLocalizations.of(context).exportedJson)),
       );
     }
   }
@@ -180,14 +183,15 @@ class _EditorScreenState extends State<EditorScreen> {
       Navigator.of(context).pop();
       if (saved) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mind map exported as PNG')),
+          SnackBar(content: Text(AppLocalizations.of(context).exportedPng)),
         );
       }
     } catch (_) {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not export image')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context).exportImageFailed)),
       );
     }
   }
@@ -206,20 +210,22 @@ class _EditorScreenState extends State<EditorScreen> {
       Navigator.of(context).pop();
       if (saved) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mind map exported as PDF')),
+          SnackBar(content: Text(AppLocalizations.of(context).exportedPdf)),
         );
       }
     } catch (_) {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not export PDF')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context).exportPdfFailed)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ChangeNotifierProvider<EditorController>.value(
       value: _controller,
       child: Scaffold(
@@ -232,12 +238,12 @@ class _EditorScreenState extends State<EditorScreen> {
                     builder: (context, c, _) => Row(
                       children: [
                         IconButton(
-                          tooltip: 'Undo',
+                          tooltip: l10n.undo,
                           icon: const Icon(Icons.undo),
                           onPressed: c.canUndo ? c.undo : null,
                         ),
                         IconButton(
-                          tooltip: 'Redo',
+                          tooltip: l10n.redo,
                           icon: const Icon(Icons.redo),
                           onPressed: c.canRedo ? c.redo : null,
                         ),
@@ -245,12 +251,12 @@ class _EditorScreenState extends State<EditorScreen> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Map settings',
+                    tooltip: l10n.mapSettings,
                     icon: const Icon(Icons.tune),
                     onPressed: _openSettings,
                   ),
                   PopupMenuButton<String>(
-                    tooltip: 'Export',
+                    tooltip: l10n.exportTooltip,
                     icon: const Icon(Icons.ios_share),
                     onSelected: (value) {
                       switch (value) {
@@ -262,32 +268,36 @@ class _EditorScreenState extends State<EditorScreen> {
                           _exportPdf();
                       }
                     },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'json',
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.data_object),
-                          title: Text('Export JSON'),
+                    itemBuilder: (context) {
+                      final menuL10n = AppLocalizations.of(context);
+                      return [
+                        PopupMenuItem(
+                          value: 'json',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.data_object),
+                            title: Text(menuL10n.exportJson),
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'png',
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.image_outlined),
-                          title: Text('Export image (PNG)'),
+                        PopupMenuItem(
+                          value: 'png',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.image_outlined),
+                            title: Text(menuL10n.exportPng),
+                          ),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'pdf',
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.picture_as_pdf_outlined),
-                          title: Text('Export PDF'),
+                        PopupMenuItem(
+                          value: 'pdf',
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading:
+                                const Icon(Icons.picture_as_pdf_outlined),
+                            title: Text(menuL10n.exportPdf),
+                          ),
                         ),
-                      ),
-                    ],
+                      ];
+                    },
                   ),
                 ],
               ),
@@ -364,8 +374,9 @@ class _EditorScreenState extends State<EditorScreen> {
                         .surfaceContainerHigh
                         .withValues(alpha: _chromeVisible ? 1 : 0.85),
                     child: IconButton(
-                      tooltip:
-                          _chromeVisible ? 'Focus mode' : 'Show controls',
+                      tooltip: _chromeVisible
+                          ? l10n.focusMode
+                          : l10n.showControls,
                       icon: Icon(
                         _chromeVisible
                             ? Icons.fullscreen
@@ -394,6 +405,7 @@ class _TemplateSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<EditorController>(
       builder: (context, c, _) => Material(
         elevation: 4,
@@ -411,8 +423,8 @@ class _TemplateSwitcher extends StatelessWidget {
                 ButtonSegment(
                   value: l,
                   icon: Icon(layoutIcon(l), size: 18),
-                  label: compact ? null : Text(l.label),
-                  tooltip: l.label,
+                  label: compact ? null : Text(l10n.layoutLabel(l)),
+                  tooltip: l10n.layoutLabel(l),
                 ),
             ],
             selected: {c.map.layout},
@@ -537,6 +549,7 @@ class _MindMapCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final map = controller.map;
+    final scheme = Theme.of(context).colorScheme;
     final selected =
         controller.selectedId == null ? null : map.nodeById(controller.selectedId!);
     return Stack(
@@ -560,6 +573,9 @@ class _MindMapCanvas extends StatelessWidget {
                 },
                 layout.sizes,
                 layout.childrenModeOf,
+                scheme.outline,
+                scheme.onSurface,
+                scheme.surface,
               ),
             ),
           ),
@@ -614,12 +630,23 @@ Offset _displayPosition(
 }
 
 class _EdgePainter extends CustomPainter {
-  _EdgePainter(this.map, this.positions, this.sizes, this.childrenModeOf);
+  _EdgePainter(
+    this.map,
+    this.positions,
+    this.sizes,
+    this.childrenModeOf,
+    this.relationColor,
+    this.relationLabelColor,
+    this.relationLabelBackground,
+  );
 
   final MindMap map;
   final Map<String, Offset> positions;
   final Map<String, Size> sizes;
   final Map<String, MindMapLayout> childrenModeOf;
+  final Color relationColor;
+  final Color relationLabelColor;
+  final Color relationLabelBackground;
 
   void _arrowhead(Canvas canvas, Offset tip, double angle, Paint paint) {
     const size = 9.0;
@@ -638,6 +665,15 @@ class _EdgePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    paintMindMapRelations(
+      canvas,
+      map,
+      positions,
+      sizes,
+      lineColor: relationColor,
+      labelColor: relationLabelColor,
+      labelBackground: relationLabelBackground,
+    );
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
@@ -720,15 +756,16 @@ Future<void> _showNodeTextDialog(
   BuildContext context,
   EditorController controller,
   MindMapNode node, {
-  String title = 'Edit node',
+  String? title,
 }) async {
+  final l10n = AppLocalizations.of(context);
   final textController = TextEditingController(text: node.text);
   textController.selection = TextSelection(
       baseOffset: 0, extentOffset: textController.text.length);
   final result = await showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(title),
+      title: Text(title ?? l10n.editNode),
       content: TextField(
         controller: textController,
         autofocus: true,
@@ -740,11 +777,11 @@ Future<void> _showNodeTextDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(textController.text),
-          child: const Text('Save'),
+          child: Text(l10n.save),
         ),
       ],
     ),
@@ -806,7 +843,9 @@ class _NodeCard extends StatelessWidget {
         onTap: () => controller.select(node.id),
         onDoubleTap: () {
           controller.select(node.id);
-          _showNodeTextDialog(context, controller, node);
+          final l10n = AppLocalizations.of(context);
+          _showNodeTextDialog(context, controller, node,
+              title: l10n.editNode);
         },
         onPanStart: !canDrag
             ? null
@@ -1012,10 +1051,8 @@ class _NodeToolbar extends StatelessWidget {
   final MindMapLayout placedBy;
   final EditorController controller;
 
-  static String _themeLabel(String key) =>
-      key[0].toUpperCase() + key.substring(1);
-
   Future<void> _pickColor(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     var custom = HSVColor.fromColor(Color(node.color));
     final picked = await showDialog<int>(
       context: context,
@@ -1026,7 +1063,7 @@ class _NodeToolbar extends StatelessWidget {
               ValueChanged<double> onChanged) {
             return Row(
               children: [
-                SizedBox(width: 16, child: Text(label)),
+                SizedBox(width: 48, child: Text(label)),
                 Expanded(
                   child: Slider(
                     value: value,
@@ -1039,7 +1076,7 @@ class _NodeToolbar extends StatelessWidget {
           }
 
           return AlertDialog(
-            title: const Text('Node color'),
+            title: Text(l10n.nodeColor),
             content: SizedBox(
               width: 340,
               child: Column(
@@ -1053,7 +1090,7 @@ class _NodeToolbar extends StatelessWidget {
                     segments: [
                       for (final key in kColorThemes.keys)
                         ButtonSegment(
-                            value: key, label: Text(_themeLabel(key))),
+                            value: key, label: Text(l10n.themeLabel(key))),
                     ],
                     selected: {controller.map.colorTheme},
                     onSelectionChanged: (s) =>
@@ -1088,7 +1125,7 @@ class _NodeToolbar extends StatelessWidget {
                   const Divider(height: 28),
                   Row(
                     children: [
-                      Text('Custom color',
+                      Text(l10n.customColor,
                           style: Theme.of(context).textTheme.labelLarge),
                       const Spacer(),
                       Container(
@@ -1102,18 +1139,18 @@ class _NodeToolbar extends StatelessWidget {
                       ),
                     ],
                   ),
-                  sliderRow('H', custom.hue, 360,
+                  sliderRow(l10n.hue, custom.hue, 360,
                       (v) => custom = custom.withHue(v)),
-                  sliderRow('S', custom.saturation, 1,
+                  sliderRow(l10n.sat, custom.saturation, 1,
                       (v) => custom = custom.withSaturation(v)),
-                  sliderRow('B', custom.value, 1,
+                  sliderRow(l10n.bright, custom.value, 1,
                       (v) => custom = custom.withValue(v)),
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton(
                       onPressed: () => Navigator.of(dialogContext)
                           .pop(custom.toColor().toARGB32()),
-                      child: const Text('Use custom color'),
+                      child: Text(l10n.useCustomColor),
                     ),
                   ),
                 ],
@@ -1127,10 +1164,11 @@ class _NodeToolbar extends StatelessWidget {
   }
 
   Future<void> _pickStatus(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final picked = await showDialog<NodeStatus>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Node status'),
+        title: Text(l10n.nodeStatus),
         children: [
           for (final s in NodeStatus.values)
             SimpleDialogOption(
@@ -1145,7 +1183,7 @@ class _NodeToolbar extends StatelessWidget {
                           ? const Color(0xFF3B6FE0)
                           : null,
                 ),
-                title: Text(s.label),
+                title: Text(l10n.statusLabel(s)),
                 trailing:
                     node.status == s ? const Icon(Icons.check) : null,
               ),
@@ -1157,27 +1195,22 @@ class _NodeToolbar extends StatelessWidget {
   }
 
   Future<void> _pickLayout(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final picked = await showDialog<_LayoutChoice>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Branch template'),
+        title: Text(l10n.branchTemplate),
         children: [
-          _layoutOption(context, null, 'Inherit',
-              'Follow the map template', node.layout == null),
+          _layoutOption(context, null, l10n.layoutInherit,
+              l10n.layoutInheritDesc, node.layout == null),
           for (final l in MindMapLayout.values)
-            _layoutOption(context, l, l.label, _describe(l), node.layout == l),
+            _layoutOption(context, l, l10n.layoutLabel(l),
+                l10n.layoutDescription(l), node.layout == l),
         ],
       ),
     );
     if (picked != null) controller.setNodeLayout(node.id, picked.layout);
   }
-
-  static String _describe(MindMapLayout l) => switch (l) {
-        MindMapLayout.map => 'Free positioning by dragging',
-        MindMapLayout.list => 'Indented outline, top to bottom',
-        MindMapLayout.step => 'Numbered sequence with arrows',
-        MindMapLayout.graph => 'Radial branches around the node',
-      };
 
   Widget _layoutOption(BuildContext context, MindMapLayout? l, String title,
       String subtitle, bool selected) {
@@ -1193,8 +1226,179 @@ class _NodeToolbar extends StatelessWidget {
     );
   }
 
+  Future<void> _manageRelations(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final links = controller.map.linksFor(node.id);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 420),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.add_link),
+                title: Text(l10n.addRelation),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _addRelation(context);
+                },
+              ),
+              if (links.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  child: Text(
+                    l10n.noRelations,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              for (final link in links)
+                ListTile(
+                  leading: const Icon(Icons.link),
+                  title: Text(_otherNodeText(link)),
+                  subtitle: Text(
+                    <String>[
+                      if (link.label.isNotEmpty) link.label,
+                      if (link.cardinality.isNotEmpty) link.cardinality,
+                    ].join(' · '),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _editRelation(context, link);
+                  },
+                  trailing: IconButton(
+                    tooltip: l10n.removeRelation,
+                    icon: const Icon(Icons.link_off),
+                    onPressed: () {
+                      controller.deleteLink(link.id);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _otherNodeText(MindMapLink link) {
+    final otherId = link.fromId == node.id ? link.toId : link.fromId;
+    return controller.map.nodeById(otherId)?.text ?? otherId;
+  }
+
+  Future<void> _addRelation(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final candidates = controller.map.nodes
+        .where((n) => controller.canAddLink(node.id, n.id))
+        .toList();
+    if (candidates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.noRelationTargets)),
+      );
+      return;
+    }
+    final target = await showDialog<MindMapNode>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text(l10n.relationTarget),
+        children: [
+          for (final candidate in candidates)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(dialogContext).pop(candidate),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: Color(candidate.color),
+                  radius: 14,
+                ),
+                title: Text(candidate.text),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (target == null || !context.mounted) return;
+    final details = await _relationDetails(context);
+    if (details == null) return;
+    controller.addLink(
+      node.id,
+      target.id,
+      label: details.label,
+      cardinality: details.cardinality,
+    );
+  }
+
+  Future<void> _editRelation(
+    BuildContext context,
+    MindMapLink link,
+  ) async {
+    final details = await _relationDetails(context, link: link);
+    if (details == null) return;
+    controller.updateLink(
+      link.id,
+      label: details.label,
+      cardinality: details.cardinality,
+    );
+  }
+
+  Future<_RelationDetails?> _relationDetails(
+    BuildContext context, {
+    MindMapLink? link,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    final label = TextEditingController(text: link?.label ?? '');
+    final cardinality =
+        TextEditingController(text: link?.cardinality ?? '');
+    final result = await showDialog<_RelationDetails>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(link == null ? l10n.addRelation : l10n.editRelation),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: label,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: l10n.relationLabel,
+                hintText: l10n.relationLabelHint,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: cardinality,
+              decoration: InputDecoration(
+                labelText: l10n.relationCardinality,
+                hintText: l10n.relationCardinalityHint,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(
+              _RelationDetails(label.text, cardinality.text),
+            ),
+            child: Text(l10n.save),
+          ),
+        ],
+      ),
+    );
+    label.dispose();
+    cardinality.dispose();
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isRoot = node.parentId == null;
     final autoPlaced = placedBy != MindMapLayout.map;
     final horizontal = placedBy == MindMapLayout.step;
@@ -1213,18 +1417,19 @@ class _NodeToolbar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  tooltip: 'Add child',
+                  tooltip: l10n.addChild,
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.add_circle_outline, size: 20),
                   onPressed: () {
-                    final child = controller.addChild(node.id);
+                    final child =
+                        controller.addChild(node.id, text: l10n.newIdea);
                     _showNodeTextDialog(context, controller, child,
-                        title: 'New node');
+                        title: l10n.newNode);
                   },
                 ),
                 if (autoPlaced) ...[
                   IconButton(
-                    tooltip: horizontal ? 'Move left' : 'Move up',
+                    tooltip: horizontal ? l10n.moveLeft : l10n.moveUp,
                     visualDensity: VisualDensity.compact,
                     icon: Icon(
                         horizontal
@@ -1234,7 +1439,7 @@ class _NodeToolbar extends StatelessWidget {
                     onPressed: () => controller.reorderSibling(node.id, -1),
                   ),
                   IconButton(
-                    tooltip: horizontal ? 'Move right' : 'Move down',
+                    tooltip: horizontal ? l10n.moveRight : l10n.moveDown,
                     visualDensity: VisualDensity.compact,
                     icon: Icon(
                         horizontal
@@ -1246,19 +1451,25 @@ class _NodeToolbar extends StatelessWidget {
                 ],
                 if (controller.canPromote(node.id))
                   IconButton(
-                    tooltip: 'Promote (sibling of parent)',
+                    tooltip: l10n.promote,
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.keyboard_double_arrow_up, size: 20),
                     onPressed: () => controller.promote(node.id),
                   ),
                 IconButton(
-                  tooltip: 'Branch template',
+                  tooltip: l10n.branchTemplate,
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.account_tree_outlined, size: 20),
                   onPressed: () => _pickLayout(context),
                 ),
                 IconButton(
-                  tooltip: 'Status',
+                  tooltip: l10n.relations,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.link, size: 20),
+                  onPressed: () => _manageRelations(context),
+                ),
+                IconButton(
+                  tooltip: l10n.status,
                   visualDensity: VisualDensity.compact,
                   icon: Icon(
                     statusIcon(node.status) ?? Icons.flag_outlined,
@@ -1267,14 +1478,14 @@ class _NodeToolbar extends StatelessWidget {
                   onPressed: () => _pickStatus(context),
                 ),
                 IconButton(
-                  tooltip: 'Color',
+                  tooltip: l10n.color,
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.palette_outlined, size: 20),
                   onPressed: () => _pickColor(context),
                 ),
                 if (!isRoot)
                   IconButton(
-                    tooltip: 'Delete branch',
+                    tooltip: l10n.deleteBranch,
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.delete_outline, size: 20),
                     onPressed: () => controller.deleteSubtree(node.id),
@@ -1296,6 +1507,13 @@ class _LayoutChoice {
   final MindMapLayout? layout;
 }
 
+class _RelationDetails {
+  const _RelationDetails(this.label, this.cardinality);
+
+  final String label;
+  final String cardinality;
+}
+
 class _ZoomControls extends StatelessWidget {
   const _ZoomControls({
     required this.onZoomIn,
@@ -1309,6 +1527,7 @@ class _ZoomControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Material(
       elevation: 4,
       borderRadius: BorderRadius.circular(24),
@@ -1317,15 +1536,15 @@ class _ZoomControls extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-              tooltip: 'Zoom in',
+              tooltip: l10n.zoomIn,
               icon: const Icon(Icons.add),
               onPressed: onZoomIn),
           IconButton(
-              tooltip: 'Fit all nodes',
+              tooltip: l10n.fitAllNodes,
               icon: const Icon(Icons.fit_screen),
               onPressed: onCenter),
           IconButton(
-              tooltip: 'Zoom out',
+              tooltip: l10n.zoomOut,
               icon: const Icon(Icons.remove),
               onPressed: onZoomOut),
         ],
@@ -1342,9 +1561,9 @@ class _HintBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final text = compact
-        ? 'Drag onto a node to attach\nPromote: ⇈ · Double-tap: edit'
-        : 'Drag onto a node to attach · Promote: ⇈ · Double-tap: edit';
+    final l10n = AppLocalizations.of(context);
+    final text =
+        compact ? l10n.hintBannerCompact : l10n.hintBanner;
     return Material(
       borderRadius: BorderRadius.circular(12),
       color: scheme.surfaceContainerHigh.withValues(alpha: 0.9),
