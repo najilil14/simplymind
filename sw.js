@@ -11,7 +11,7 @@
 // Replaced with the commit sha by .github/workflows/deploy.yml. A changing
 // cache name is what forces the browser to install this worker again and
 // refetch the shell after every deploy.
-const BUILD_ID = '3c4f11f9678b04cc650e12b2222459e31ebb5a5f';
+const BUILD_ID = '__BUILD_ID__';
 const CACHE_NAME = 'simplymind-' + BUILD_ID;
 
 const PRECACHE_URLS = [
