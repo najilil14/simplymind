@@ -27,6 +27,11 @@ jobs:
       - name: Build Web App
         run: flutter build web --release --base-href "/"
 
+      # The service worker cache name must change every deploy, otherwise
+      # browsers keep serving the previously cached app bundle.
+      - name: Stamp service worker build id
+        run: sed -i "s/__BUILD_ID__/${GITHUB_SHA}/" build/web/sw.js
+
       # Peaceiris force-orphans gh-pages each run. Without a CNAME file in
       # the published folder, GitHub clears the custom domain. web/CNAME is
       # copied by Flutter; this step guarantees it even if that ever changes.
