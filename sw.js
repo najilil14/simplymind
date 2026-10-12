@@ -11,7 +11,7 @@
 // Replaced with the commit sha by .github/workflows/deploy.yml. A changing
 // cache name is what forces the browser to install this worker again and
 // refetch the shell after every deploy.
-const BUILD_ID = '__BUILD_ID__';
+const BUILD_ID = '7ecad2265599eb08446a51ce2737d947f723e93d';
 const CACHE_NAME = 'simplymind-' + BUILD_ID;
 
 const PRECACHE_URLS = [
@@ -135,6 +135,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // dbdiagram is a separate Vite/React app shipped under /dbdiagram/. It has
+  // its own asset URLs and its own offline story, so let the browser handle
+  // those requests directly instead of running them through the SimplyMind
+  // network-first/cache-first rules (which would fall back to Flutter's
+  // index.html when offline and break the sub-app).
+  if (url.pathname === '/dbdiagram' || url.pathname.startsWith('/dbdiagram/')) {
+    return;
+  }
 
   // Keep update checks live; fail silently when offline (banner handles null).
   if (isVersionJson(url)) {
