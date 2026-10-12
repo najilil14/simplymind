@@ -54,6 +54,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get languageIndonesian => 'Bahasa Indonesia';
 
   @override
+  String get openDbDiagram => 'Buka DB Diagram';
+
+  @override
   String get importJson => 'Impor JSON';
 
   @override

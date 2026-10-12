@@ -54,6 +54,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageIndonesian => 'Bahasa Indonesia';
 
   @override
+  String get openDbDiagram => 'Open DB Diagram';
+
+  @override
   String get importJson => 'Import JSON';
 
   @override

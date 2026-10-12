@@ -136,6 +136,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // dbdiagram is a separate Vite/React app shipped under /dbdiagram/. It has
+  // its own asset URLs and its own offline story, so let the browser handle
+  // those requests directly instead of running them through the SimplyMind
+  // network-first/cache-first rules (which would fall back to Flutter's
+  // index.html when offline and break the sub-app).
+  if (url.pathname === '/dbdiagram' || url.pathname.startsWith('/dbdiagram/')) {
+    return;
+  }
+
   // Keep update checks live; fail silently when offline (banner handles null).
   if (isVersionJson(url)) {
     event.respondWith(fetch(request));

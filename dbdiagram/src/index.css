@@ -1,0 +1,16 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  font-family: Inter, Segoe UI, system-ui, sans-serif;
+}
+
+body {
+  background: #111318;
+  color: #e8eaed;
+}

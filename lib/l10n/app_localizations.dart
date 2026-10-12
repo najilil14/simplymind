@@ -188,6 +188,12 @@ abstract class AppLocalizations {
   /// **'Bahasa Indonesia'**
   String get languageIndonesian;
 
+  /// No description provided for @openDbDiagram.
+  ///
+  /// In en, this message translates to:
+  /// **'Open DB Diagram'**
+  String get openDbDiagram;
+
   /// No description provided for @importJson.
   ///
   /// In en, this message translates to:

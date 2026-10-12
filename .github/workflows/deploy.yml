@@ -27,6 +27,30 @@ jobs:
       - name: Build Web App
         run: flutter build web --release --base-href "/"
 
+      # dbdiagram is a separate Vite/React app shipped under /dbdiagram/
+      # on the same origin. Build it here and drop the output into the
+      # Flutter build so a single gh-pages push serves both apps.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dbdiagram/package-lock.json
+
+      - name: Install dbdiagram dependencies
+        working-directory: dbdiagram
+        run: npm ci
+
+      - name: Build dbdiagram
+        working-directory: dbdiagram
+        run: npm run build
+
+      - name: Merge dbdiagram into web build
+        run: |
+          rm -rf build/web/dbdiagram
+          mkdir -p build/web/dbdiagram
+          cp -r dbdiagram/dist/. build/web/dbdiagram/
+
       # The service worker cache name must change every deploy, otherwise
       # browsers keep serving the previously cached app bundle.
       - name: Stamp service worker build id

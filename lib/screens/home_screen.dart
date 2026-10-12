@@ -9,6 +9,7 @@ import '../state/locale_controller.dart';
 import '../storage/json_transfer.dart';
 import '../storage/mind_map_storage.dart';
 import '../templates/map_starters.dart';
+import '../utils/dbdiagram_launcher.dart';
 import '../utils/feedback_launcher.dart';
 import 'editor_screen.dart';
 import 'help_screen.dart';
@@ -576,6 +577,11 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: l10n.importJson,
             icon: const Icon(Icons.file_open_outlined),
             onPressed: _importMap,
+          ),
+          IconButton(
+            tooltip: l10n.openDbDiagram,
+            icon: const Icon(Icons.schema_outlined),
+            onPressed: () => openDbDiagram(context),
           ),
           PopupMenuButton<String>(
             tooltip: l10n.more,

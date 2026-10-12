@@ -1,0 +1,157 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 12px;
+  background: #16181d;
+  border-bottom: 1px solid #2a2e37;
+}
+
+.app__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.app__logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+}
+
+.app__muted {
+  color: #8b93a7;
+  font-size: 12px;
+}
+
+.app__reset {
+  border: 1px solid #3b4254;
+  background: #222632;
+  color: #e8eaed;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.app__reset:hover {
+  background: #2c3242;
+}
+
+.app__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.app__editor {
+  position: relative;
+  min-width: 240px;
+  background: #1e1e1e;
+}
+
+.app__splitter {
+  width: 6px;
+  cursor: col-resize;
+  background: #2a2e37;
+}
+
+.app__splitter:hover {
+  background: #3b82f6;
+}
+
+.app__canvas {
+  flex: 1;
+  min-width: 0;
+  background: #f7f8fa;
+}
+
+.app__error {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 12px;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 12px;
+  z-index: 2;
+}
+
+.table-node {
+  background: #fff;
+  border: 1px solid #d8dee9;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+  overflow: visible;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.table-node__header {
+  background: #0f766e;
+  color: #fff;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px 8px 0 0;
+}
+
+.table-node__row {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+.table-node__name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.table-node__type {
+  color: #64748b;
+}
+
+.table-node__handle {
+  width: 8px;
+  height: 8px;
+  background: #94a3b8;
+  border: 1px solid #fff;
+}
+
+.badge {
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 1px 4px;
+  letter-spacing: 0.02em;
+}
+
+.badge--pk {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge--fk {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.react-flow__controls,
+.react-flow__minimap {
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 12%);
+}

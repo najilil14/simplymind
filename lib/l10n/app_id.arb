@@ -16,6 +16,7 @@
   "languageEnglish": "English",
   "languageIndonesian": "Bahasa Indonesia",
 
+  "openDbDiagram": "Buka DB Diagram",
   "importJson": "Impor JSON",
   "exportJson": "Ekspor JSON",
   "exportPng": "Ekspor gambar (PNG)",

@@ -1,12 +1,18 @@
 'use strict';
 
 // SimplyMind offline service worker.
-// Precaches the app shell on install. Same-origin GETs use stale-while-
-// revalidate so the first online visit fills the cache (main.dart.js,
-// CanvasKit, fonts, assets) and later launches work offline. version.json
-// stays network-only so the in-page update banner still works.
+// Precaches the app shell on install so launches work offline. Code
+// entrypoints (index.html, flutter_bootstrap.js, main.dart.js) are network
+// first, so a new deploy is picked up on the next visit instead of being
+// pinned to whatever was cached before. Heavy immutable payloads (CanvasKit,
+// fonts, assets) stay cache first. version.json is network only so the
+// in-page update banner still works.
 
-const CACHE_NAME = 'simplymind-v1';
+// Replaced with the commit sha by .github/workflows/deploy.yml. A changing
+// cache name is what forces the browser to install this worker again and
+// refetch the shell after every deploy.
+const BUILD_ID = '__BUILD_ID__';
+const CACHE_NAME = 'simplymind-' + BUILD_ID;
 
 const PRECACHE_URLS = [
   './',
@@ -61,8 +67,66 @@ self.addEventListener('activate', (event) => {
 });
 
 function isVersionJson(url) {
-  return url.pathname.endsWith('/version.json') ||
-      url.pathname.endsWith('version.json');
+  return url.pathname.endsWith('version.json');
+}
+
+// Files that carry app code and must never outlive a deploy.
+function isCodeEntrypoint(url) {
+  const path = url.pathname;
+  return (
+    path.endsWith('/') ||
+    path.endsWith('.html') ||
+    path.endsWith('/flutter_bootstrap.js') ||
+    path.endsWith('/flutter.js') ||
+    path.endsWith('/main.dart.js') ||
+    path.endsWith('/manifest.json')
+  );
+}
+
+async function cachePut(request, response) {
+  if (response && response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
+async function networkFirst(request, fallbackKeys) {
+  try {
+    const fresh = await fetch(request, { cache: 'no-store' });
+    if (fresh && fresh.ok) {
+      await cachePut(request, fresh);
+      return fresh;
+    }
+  } catch (_) {
+    // Offline; fall through to the cache.
+  }
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  for (const key of fallbackKeys || []) {
+    const hit = await cache.match(key);
+    if (hit) return hit;
+  }
+  return Response.error();
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+
+  const networkPromise = fetch(request)
+      .then((response) => cachePut(request, response))
+      .catch(() => null);
+
+  if (cached) {
+    // Kick off revalidation; do not await.
+    networkPromise;
+    return cached;
+  }
+
+  const fresh = await networkPromise;
+  return fresh || Response.error();
 }
 
 self.addEventListener('fetch', (event) => {
@@ -78,54 +142,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App navigations: prefer network, fall back to cached shell.
   if (request.mode === 'navigate') {
     event.respondWith(
-      (async () => {
-        try {
-          const fresh = await fetch(request);
-          const cache = await caches.open(CACHE_NAME);
-          if (fresh.ok) {
-            cache.put('./index.html', fresh.clone());
-          }
-          return fresh;
-        } catch (_) {
-          const cache = await caches.open(CACHE_NAME);
-          return (
-            (await cache.match('./index.html')) ||
-            (await cache.match('index.html')) ||
-            (await cache.match('./')) ||
-            Response.error()
-          );
-        }
-      })(),
+      networkFirst(request, ['./index.html', 'index.html', './']),
     );
     return;
   }
 
-  // Assets: cache-first, refresh in background when online.
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(request);
+  if (isCodeEntrypoint(url)) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
 
-      const networkPromise = fetch(request)
-          .then((response) => {
-            if (response && response.ok) {
-              cache.put(request, response.clone());
-            }
-            return response;
-          })
-          .catch(() => null);
-
-      if (cached) {
-        // Kick off revalidation; do not await.
-        networkPromise;
-        return cached;
-      }
-
-      const fresh = await networkPromise;
-      return fresh || Response.error();
-    })(),
-  );
+  event.respondWith(cacheFirst(request));
 });

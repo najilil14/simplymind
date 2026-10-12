@@ -48,8 +48,13 @@
        Flutter no longer ships a caching worker; see web/sw.js. -->
   <script>
     if ('serviceWorker' in navigator) {
+      // Remembered before registration: a controller that changes later means
+      // a new deploy took over, not a first-time install.
+      window.__smHadController = !!navigator.serviceWorker.controller;
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function (err) {
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
+          reg.update().catch(function () {});
+        }).catch(function (err) {
           console.warn('SimplyMind service worker registration failed:', err);
         });
       });
@@ -109,6 +114,15 @@
         if (document.visibilityState === 'visible') check();
       });
       setInterval(check, 5 * 60 * 1000);
+
+      // version.json only moves when pubspec version changes, so also react
+      // when a newly deployed service worker takes over this page.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (window.__smHadController) showUpdateBanner();
+          window.__smHadController = true;
+        });
+      }
     })();
   </script>
 </body>
